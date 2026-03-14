@@ -24,7 +24,7 @@ export default function CarCard({ car, featured = false }: { car: CarListItem; f
       <div className="relative flex flex-col h-full w-full bg-white rounded-[24px] overflow-hidden">
         {/* Image */}
         <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-50">
-          <LocalizedClientLink href={`/cars/${car.handle}`} className="block w-full h-full">
+          <LocalizedClientLink href={`/cars/${car.handle ?? car.id}`} className="block w-full h-full">
             <motion.div
               whileHover={{ scale: 1.08 }}
               transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
@@ -70,7 +70,7 @@ export default function CarCard({ car, featured = false }: { car: CarListItem; f
           )}
           {car.availability && !featured && car.car_type && (
             <div className="absolute bottom-3 left-3 px-3 py-1 rounded-full bg-slate-700/90 backdrop-blur-md text-[10px] font-black uppercase tracking-widest text-white">
-              {car.car_type}
+              {car.car_type === "Used" ? "Old" : car.car_type}
             </div>
           )}
           {car.availability && !featured && !car.car_type && (
@@ -92,27 +92,40 @@ export default function CarCard({ car, featured = false }: { car: CarListItem; f
             {formatCarPrice(car.price)}
           </p>
 
-          <div className="grid grid-cols-2 gap-3 pt-4 border-t border-slate-100">
-            <div className="flex items-center gap-2 text-slate-500">
-              <Fuel size={14} className="text-blue-500 shrink-0" />
-              <span className="text-xs font-medium truncate">{car.fuel_type || "Petrol"}</span>
-            </div>
-            <div className="flex items-center gap-2 text-slate-500">
-              <Gauge size={14} className="text-blue-500 shrink-0" />
-              <span className="text-xs font-medium truncate">{car.mileage || "—"} kmpl</span>
+          <div className="grid grid-cols-2 gap-2 pt-4 border-t border-slate-100">
+            {car.car_type && (
+              <p className="text-xs text-slate-500 truncate font-medium">
+                {car.car_type === "Used" ? "Old" : car.car_type}
+              </p>
+            )}
+            {car.year && (
+              <p className="text-xs text-slate-500 truncate">{car.year}</p>
+            )}
+            {car.fuel_type && (
+              <div className="flex items-center gap-1.5 text-slate-500">
+                <Fuel size={12} className="text-blue-500 shrink-0" />
+                <span className="text-xs font-medium truncate">{car.fuel_type}</span>
+              </div>
+            )}
+            {car.transmission && (
+              <p className="text-xs text-slate-500 truncate">{car.transmission}</p>
+            )}
+            <div className="flex items-center gap-1.5 text-slate-500">
+              <Gauge size={12} className="text-blue-500 shrink-0" />
+              <span className="text-xs font-medium truncate">{car.mileage ? `${car.mileage} kmpl` : "—"}</span>
             </div>
           </div>
 
           {car.city && (
-            <p className="text-xs text-slate-400 mt-2 truncate">{car.city}</p>
+            <p className="text-xs text-slate-400 mt-2 truncate" title={car.city}>{car.city}</p>
           )}
 
           <div className="mt-6">
             <LocalizedClientLink
-              href={`/cars/${car.handle}`}
+              href={`/cars/${car.handle ?? car.id}`}
               className="flex items-center justify-center w-full py-3 rounded-xl bg-slate-50 text-slate-900 text-sm font-bold transition-all group-hover:bg-blue-600 group-hover:text-white"
             >
-              View Configuration
+              View Details
             </LocalizedClientLink>
           </div>
         </div>

@@ -12,6 +12,7 @@ import FeaturedCarsSection from "@modules/home/components/featured-cars-section"
 import LatestArrivals from "@modules/home/components/latest-arrivals"
 import LatestCarUpdates from "@modules/home/components/latest-car-updates"
 import HeroCarousel from "@modules/home/components/hero-carousel"
+import HeroQuickFilters from "@modules/home/components/hero-quick-filters"
 import WhyChooseUs from "@modules/home/components/why-choose-us"
 import CTASection from "@modules/home/components/cta-section"
 
@@ -20,15 +21,14 @@ export const metadata: Metadata = {
   description: "Browse thousands of cars. Search, compare and find the best deal.",
 }
 
-const BRANDS = [
+/** Fallback brand names when API returns none (e.g. empty catalog). */
+const FALLBACK_BRANDS = [
   "Maruti Suzuki",
   "Hyundai",
   "Honda",
   "Toyota",
   "Mahindra",
   "Tata",
-  "Nissan",
-  "Volvo",
 ]
 
 const LOGO_OVERRIDES_BY_BRAND_KEY: Record<string, string> = {
@@ -142,19 +142,17 @@ export default async function HomePage(props: {
   const { countryCode } = await props.params
   const { cars } = await listCars(countryCode)
   const filterOptions = await getCarFilterOptions(cars)
-  const brandLogoItems = await getBrandLogoItems([
-    ...filterOptions.brands,
-    ...BRANDS,
-  ])
-  const brandCarImages = await getBrandCarImages(BRANDS)
+  const brands = filterOptions.brands.length > 0 ? filterOptions.brands : FALLBACK_BRANDS
+  const brandLogoItems = await getBrandLogoItems(brands)
+  const brandCarImages = await getBrandCarImages(brands)
 
   const featuredCars = cars.slice(0, 8)
   const latestCars = [...cars].sort((a, b) => (Number(b.year) || 0) - (Number(a.year) || 0)).slice(0, 4)
-  const mostPopular = cars.slice(0, 3)
-  const justLaunched = [...cars]
-    .sort((a, b) => (Number(b.year) || 0) - (Number(a.year) || 0))
-    .slice(0, 3)
-  const upcoming = [...cars].slice(3, 6)
+  const featuredTabs = {
+    featured: cars.slice(0, 3),
+    newest: [...cars].sort((a, b) => (Number(b.year) || 0) - (Number(a.year) || 0)).slice(0, 3),
+    moreListings: cars.slice(3, 6),
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 overflow-x-hidden">
@@ -172,6 +170,8 @@ export default async function HomePage(props: {
               Explore {cars.length}+ cars from top brands. Buy, sell and discover with confidence.
             </p>
           </div>
+
+          <HeroQuickFilters />
 
           <Suspense>
             <CarSearchBar
@@ -199,9 +199,9 @@ export default async function HomePage(props: {
       {/* ── Featured Cars + Latest Updates (as per reference) ─────────────── */}
       <div className="bg-white">
         <FeaturedCarsTabs
-          mostPopular={mostPopular}
-          justLaunched={justLaunched}
-          upcoming={upcoming}
+          featured={featuredTabs.featured}
+          newest={featuredTabs.newest}
+          moreListings={featuredTabs.moreListings}
         />
         <LatestCarUpdates />
       </div>
@@ -210,8 +210,8 @@ export default async function HomePage(props: {
       <section className="py-14">
         <div className="content-container flex items-center justify-between mb-8">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Popular Brands</h2>
-            <p className="text-gray-500 text-sm mt-1">Browse cars by your favourite brand</p>
+            <h2 className="text-2xl font-bold text-gray-900">Browse by Brand</h2>
+            <p className="text-gray-500 text-sm mt-1">Find cars from verified sellers by brand</p>
           </div>
           <LocalizedClientLink href="/brands" className="text-blue-600 hover:underline text-sm font-medium">
             All brands →
@@ -226,7 +226,7 @@ export default async function HomePage(props: {
         )}
 
         <div className="content-container mt-14 grid grid-cols-4 md:grid-cols-8 gap-3">
-          {BRANDS.map((brandName) => {
+          {brands.slice(0, 8).map((brandName) => {
             const imageSrc = brandCarImages[brandName]
             return (
               <LocalizedClientLink

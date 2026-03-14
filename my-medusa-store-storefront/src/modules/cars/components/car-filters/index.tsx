@@ -6,8 +6,15 @@ import type { CarFilterOptions } from "@lib/data/cars"
 import TextField from "@modules/common/components/text-field"
 import SelectField from "@modules/common/components/select-field"
 import Button from "@modules/common/components/button"
+import BrandFilter from "@modules/cars/components/brand-filter"
+import PriceFilter from "@modules/cars/components/price-filter"
+
+export type CategoryOption = { value: string; label: string }
 
 type ActiveFilters = {
+  category?: string
+  carType?: string
+  maxPrice?: string
   brand?: string
   fuelType?: string
   transmission?: string
@@ -19,6 +26,13 @@ type ActiveFilters = {
   priceMin?: string
   priceMax?: string
   sortBy?: string
+}
+
+type CarFiltersProps = {
+  options: CarFilterOptions
+  active: ActiveFilters
+  categoryOptions?: CategoryOption[]
+  maxPriceOptions?: CategoryOption[]
 }
 
 const SORT_OPTIONS = [
@@ -41,7 +55,7 @@ function FilterSection({ title, children }: { title: string; children: React.Rea
   )
 }
 
-export default function CarFilters({ options, active }: { options: CarFilterOptions; active: ActiveFilters }) {
+export default function CarFilters({ options, active, categoryOptions = [], maxPriceOptions = [] }: CarFiltersProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -99,6 +113,34 @@ export default function CarFilters({ options, active }: { options: CarFilterOpti
             />
           </FilterSection>
 
+          {categoryOptions.length > 0 && (
+            <FilterSection title="Category">
+              <SelectField
+                label=""
+                options={categoryOptions}
+                placeholder="All categories"
+                value={active.category ?? ""}
+                onChange={(e) => update("category", e.target.value)}
+                containerClassName={COMPACT_INPUT}
+              />
+            </FilterSection>
+          )}
+
+          <FilterSection title="Car type">
+            <SelectField
+              label=""
+              options={[
+                { value: "", label: "All" },
+                { value: "Used", label: "Old / Used" },
+                { value: "New", label: "New" },
+              ]}
+              placeholder="All"
+              value={active.carType ?? ""}
+              onChange={(e) => update("carType", e.target.value)}
+              containerClassName={COMPACT_INPUT}
+            />
+          </FilterSection>
+
           <FilterSection title="Sort by">
             <SelectField
               label=""
@@ -112,13 +154,12 @@ export default function CarFilters({ options, active }: { options: CarFilterOpti
 
           {options.brands.length > 0 && (
             <FilterSection title="Brand">
-              <SelectField
-                label=""
+              <BrandFilter
                 options={options.brands}
-                placeholder="All brands"
                 value={active.brand ?? ""}
-                onChange={(e) => update("brand", e.target.value)}
-                containerClassName={COMPACT_INPUT}
+                onChange={(v) => update("brand", v)}
+                placeholder="All brands"
+                label=""
               />
             </FilterSection>
           )}
@@ -201,28 +242,27 @@ export default function CarFilters({ options, active }: { options: CarFilterOpti
             </FilterSection>
           )}
 
+          {maxPriceOptions.length > 0 && (
+            <FilterSection title="Max price">
+              <SelectField
+                label=""
+                options={maxPriceOptions}
+                placeholder="Any budget"
+                value={active.maxPrice ?? ""}
+                onChange={(e) => update("maxPrice", e.target.value)}
+                containerClassName={COMPACT_INPUT}
+              />
+            </FilterSection>
+          )}
+
           <FilterSection title="Price range (₹)">
-            <div className="flex gap-2 items-center">
-              <TextField
-                label=""
-                type="number"
-                placeholder="Min"
-                value={active.priceMin ?? ""}
-                onChange={(e) => update("priceMin", e.target.value)}
-                containerClassName={`flex-1 ${COMPACT_INPUT}`}
-                inputMode="numeric"
-              />
-              <span className="text-slate-300 font-medium text-xs">–</span>
-              <TextField
-                label=""
-                type="number"
-                placeholder="Max"
-                value={active.priceMax ?? ""}
-                onChange={(e) => update("priceMax", e.target.value)}
-                containerClassName={`flex-1 ${COMPACT_INPUT}`}
-                inputMode="numeric"
-              />
-            </div>
+            <PriceFilter
+              priceMin={active.priceMin ?? ""}
+              priceMax={active.priceMax ?? ""}
+              onMinChange={(v) => update("priceMin", v)}
+              onMaxChange={(v) => update("priceMax", v)}
+              label=""
+            />
           </FilterSection>
         </div>
       </div>

@@ -5,6 +5,7 @@ import { getCarByHandle } from "@lib/data/cars"
 
 type Props = {
   params: Promise<{ countryCode: string; handle: string }>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -23,11 +24,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-export default async function CarDetailPage({ params }: Props) {
+export default async function CarDetailPage({ params, searchParams }: Props) {
   const { countryCode, handle } = await params
+  const resolved = await searchParams
+  const variantId = typeof resolved?.variant_id === "string" ? resolved.variant_id : Array.isArray(resolved?.variant_id) ? resolved.variant_id[0] : undefined
   const { car } = await getCarByHandle(countryCode, handle)
   if (!car) notFound()
 
-  return <CarDetailTemplate car={car} />
+  return <CarDetailTemplate car={car} variantIdFromUrl={variantId} />
 }
 

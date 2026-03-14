@@ -16,19 +16,9 @@ const Register = ({ setCurrentView }: Props) => {
   const [message, formAction] = useActionState(signup, null)
 
   return (
-    <div
-      className="max-w-sm flex flex-col items-center"
-      data-testid="register-page"
-    >
-      <h1 className="text-large-semi uppercase mb-6">
-        Become a Medusa Store Member
-      </h1>
-      <p className="text-center text-base-regular text-ui-fg-base mb-4">
-        Create your Medusa Store Member profile, and get access to an enhanced
-        shopping experience.
-      </p>
-      <form className="w-full flex flex-col" action={formAction}>
-        <div className="flex flex-col w-full gap-y-2">
+    <div className="w-full" data-testid="register-page">
+      <form className="w-full space-y-4" action={formAction}>
+        <div className="grid grid-cols-2 gap-4">
           <Input
             label="First name"
             name="first_name"
@@ -43,62 +33,55 @@ const Register = ({ setCurrentView }: Props) => {
             autoComplete="family-name"
             data-testid="last-name-input"
           />
-          <Input
-            label="Email"
-            name="email"
-            required
-            type="email"
-            autoComplete="email"
-            data-testid="email-input"
-          />
-          <Input
-            label="Phone"
-            name="phone"
-            type="tel"
-            autoComplete="tel"
-            data-testid="phone-input"
-          />
-          <Input
-            label="Password"
-            name="password"
-            required
-            type="password"
-            autoComplete="new-password"
-            data-testid="password-input"
-          />
         </div>
+        <Input
+          label="Email"
+          name="email"
+          required
+          type="email"
+          autoComplete="email"
+          data-testid="email-input"
+        />
+        <Input
+          label="Phone"
+          name="phone"
+          type="tel"
+          autoComplete="tel"
+          data-testid="phone-input"
+        />
+        <Input
+          label="Password"
+          name="password"
+          required
+          type="password"
+          autoComplete="new-password"
+          data-testid="password-input"
+        />
         <ErrorMessage error={message} data-testid="register-error" />
-        <span className="text-center text-ui-fg-base text-small-regular mt-6">
-          By creating an account, you agree to Medusa Store&apos;s{" "}
-          <LocalizedClientLink
-            href="/content/privacy-policy"
-            className="underline"
-          >
+        <p className="text-xs text-slate-500">
+          By creating an account, you agree to GoGaddi&apos;s{" "}
+          <LocalizedClientLink href="/privacy-policy" className="underline hover:text-slate-700">
             Privacy Policy
           </LocalizedClientLink>{" "}
           and{" "}
-          <LocalizedClientLink
-            href="/content/terms-of-use"
-            className="underline"
-          >
+          <LocalizedClientLink href="/terms" className="underline hover:text-slate-700">
             Terms of Use
-          </LocalizedClientLink>
-          .
-        </span>
-        <SubmitButton className="w-full mt-6" data-testid="register-button">
-          Join
+          </LocalizedClientLink>.
+        </p>
+        <SubmitButton className="w-full !mt-4" data-testid="register-button">
+          Create account
         </SubmitButton>
       </form>
-      <span className="text-center text-ui-fg-base text-small-regular mt-6">
+      <p className="text-center text-slate-500 text-sm mt-6">
         Already a member?{" "}
         <button
+          type="button"
           onClick={() => setCurrentView(LOGIN_VIEW.SIGN_IN)}
-          className="underline"
+          className="font-medium text-blue-600 hover:underline"
         >
           Sign in
         </button>
-        .
-      </span>
+      </p>
     </div>
   )
 }

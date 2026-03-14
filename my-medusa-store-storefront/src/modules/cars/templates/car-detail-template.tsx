@@ -2,8 +2,10 @@ import LocalizedClientLink from "@modules/common/components/localized-client-lin
 import CarGallery from "@modules/cars/components/car-gallery"
 import CarReviewForm from "@modules/cars/components/car-review-form"
 import CarCard from "@modules/cars/components/car-card"
+import SellerCard from "@modules/cars/components/seller-card"
+import CarVariantsTable from "@modules/cars/components/car-variants-table"
 import { submitCarReview } from "@lib/data/cars"
-import { formatCarPrice } from "@lib/util/format-car-price"
+import { formatCarPrice, getVersionPrice } from "@lib/util/format-car-price"
 import type { CarDetail, RelatedCar } from "@lib/data/cars"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -100,7 +102,22 @@ function RelatedCarCard({ related }: { related: RelatedCar }) {
 
 // ─── Main Template ────────────────────────────────────────────────────────────
 
-export default function CarDetailTemplate({ car }: { car: CarDetail }) {
+export default function CarDetailTemplate({ car, variantIdFromUrl }: { car: CarDetail; variantIdFromUrl?: string }) {
+  const versions = car.versions ?? []
+  const selectedVariant =
+    variantIdFromUrl && versions.length > 0
+      ? versions.find((v) => v.id === variantIdFromUrl) ?? versions[0]
+      : versions[0] ?? null
+  const displayPrice = selectedVariant ? getVersionPrice(selectedVariant.prices) : null
+  const displayPriceFormatted = displayPrice != null ? formatCarPrice(displayPrice) : formatCarPrice(car.price)
+  const selectedAvailability =
+    selectedVariant == null
+      ? car.availability
+      : selectedVariant.manage_inventory
+        ? (selectedVariant.inventory_quantity ?? 0) > 0
+        : true
+  const checkoutVariantId = selectedVariant?.id ?? null
+
   const avgRating =
     (car.reviews?.length ?? 0) > 0
       ? car.reviews.reduce((a, r) => a + r.rating, 0) / car.reviews.length
@@ -175,6 +192,15 @@ export default function CarDetailTemplate({ car }: { car: CarDetail }) {
                 <h3 className="text-lg font-bold text-gray-900 mb-5">Specifications</h3>
                 <SpecsTable specs={car.specifications} />
               </div>
+            )}
+
+            {/* Variants */}
+            {versions.length > 0 && (
+              <CarVariantsTable
+                versions={versions}
+                selectedVariantId={selectedVariant?.id ?? null}
+                carHandle={car.handle}
+              />
             )}
 
             {/* Features */}
@@ -254,7 +280,7 @@ export default function CarDetailTemplate({ car }: { car: CarDetail }) {
                 {car.brand && <p className="text-gray-500 text-sm mb-4">{car.brand}</p>}
 
                 <p className="text-3xl font-extrabold text-blue-700 mb-1">
-                  {formatCarPrice(car.price)}
+                  {displayPriceFormatted}
                 </p>
                 {car.city && (
                   <p className="text-sm text-gray-400 flex items-center gap-1">
@@ -267,15 +293,15 @@ export default function CarDetailTemplate({ car }: { car: CarDetail }) {
                 )}
 
                 <div className="mt-5 space-y-3">
-                  {car.availability ? (
+                  {selectedAvailability ? (
                     <LocalizedClientLink
-                      href={`/checkout/${car.handle}`}
+                      href={checkoutVariantId ? `/checkout/${car.handle}?variant_id=${encodeURIComponent(checkoutVariantId)}` : `/checkout/${car.handle}`}
                       className="w-full flex items-center justify-center gap-2 bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-extrabold py-3 px-4 rounded-xl transition-colors"
                     >
                       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1.5 7h13L17 13M7 13h10" />
                       </svg>
-                      Checkout / Enquire
+                      {checkoutVariantId ? "Buy this variant / Checkout" : "Checkout / Enquire"}
                     </LocalizedClientLink>
                   ) : (
                     <div className="w-full flex items-center justify-center gap-2 bg-red-100 text-red-700 font-extrabold py-3 px-4 rounded-xl border border-red-200 cursor-not-allowed select-none">
@@ -305,27 +331,11 @@ export default function CarDetailTemplate({ car }: { car: CarDetail }) {
                 </div>
               </div>
 
-              {/* Seller Card */}
-              <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
-                <h3 className="text-sm font-bold text-gray-800 mb-3">Seller Information</h3>
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                    <span className="text-blue-600 font-bold text-sm">
-                      {car.name?.charAt(0) ?? "S"}
-                    </span>
-                  </div>
-                  <div>
-                    <p className="font-semibold text-sm text-gray-800">Private Seller</p>
-                    <p className="text-xs text-green-600 flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 bg-green-500 rounded-full inline-block" />
-                      Verified
-                    </p>
-                  </div>
-                </div>
-                {car.city && (
-                  <p className="text-sm text-gray-500">📍 {car.city}</p>
-                )}
-              </div>
+              <SellerCard
+                name="Private Seller"
+                city={car.city}
+                phone="+919999999999"
+              />
 
               {/* Back to listing */}
               <LocalizedClientLink

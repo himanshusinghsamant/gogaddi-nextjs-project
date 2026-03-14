@@ -23,12 +23,12 @@ const OrderDetailsTemplate: React.FC<OrderDetailsTemplateProps> = ({
     (order as { status?: string }).status?.toLowerCase() === "canceled"
 
   return (
-    <div className="flex flex-col justify-center gap-y-4">
-      <div className="flex gap-2 justify-between items-center flex-wrap">
-        <h1 className="text-2xl-semi">Order details</h1>
+    <div className="p-6 md:p-8 flex flex-col gap-6" data-testid="order-details-container">
+      <div className="flex flex-wrap justify-between items-center gap-4">
+        <h1 className="text-2xl font-bold text-slate-900">Order #{order.display_id}</h1>
         <div className="flex items-center gap-2">
           {isCanceled && (
-            <span className="text-small-regular text-red-600 font-medium">
+            <span className="px-2 py-1 rounded-md bg-red-100 text-red-700 text-sm font-medium">
               Cancelled
             </span>
           )}
@@ -39,17 +39,14 @@ const OrderDetailsTemplate: React.FC<OrderDetailsTemplateProps> = ({
           />
           <LocalizedClientLink
             href="/account/orders"
-            className="flex gap-2 items-center text-ui-fg-subtle hover:text-ui-fg-base"
+            className="flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900"
             data-testid="back-to-overview-button"
           >
-            <XMark /> Back to overview
+            <XMark /> Back to orders
           </LocalizedClientLink>
         </div>
       </div>
-      <div
-        className="flex flex-col gap-4 h-full bg-white w-full"
-        data-testid="order-details-container"
-      >
+      <div className="flex flex-col gap-6 w-full">
         <OrderDetails order={order} showStatus />
         <Items order={order} />
         <ShippingDetails order={order} />
@@ -64,5 +61,6 @@ const OrderDetailsTemplate: React.FC<OrderDetailsTemplateProps> = ({
     </div>
   )
 }
+
 
 export default OrderDetailsTemplate

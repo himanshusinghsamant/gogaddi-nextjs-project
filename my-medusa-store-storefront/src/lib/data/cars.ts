@@ -21,9 +21,12 @@ export type CarReview = {
 export type CarVersion = {
   id: string
   title: string
+  sku: string | null
   fuel_type: string | null
   transmission: string | null
   prices: unknown
+  inventory_quantity: number | null
+  manage_inventory: boolean
 }
 
 export type RelatedCar = {
@@ -240,10 +243,13 @@ function mapProductToCar(p: HttpTypes.StoreProduct): CarListItem {
     reviews: [],
     versions: (p.variants ?? []).map((v: any) => ({
       id: v.id,
-      title: v.title,
+      title: v.title ?? "Variant",
+      sku: v.sku ?? null,
       fuel_type: getVariantOptionValue(v, "Fuel Type"),
       transmission: getVariantOptionValue(v, "Transmission"),
       prices: v.prices,
+      inventory_quantity: typeof v.inventory_quantity === "number" ? v.inventory_quantity : null,
+      manage_inventory: Boolean(v.manage_inventory),
     })),
     related_cars: [],
   }
@@ -276,6 +282,35 @@ export async function listCars(
   }
 }
 
+/** Fetch reviews for a car (product) from the store API. */
+async function fetchCarReviews(productId: string): Promise<CarReview[]> {
+  const baseUrl = process.env.MEDUSA_BACKEND_URL || "http://localhost:9000"
+  const publishableKey = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY
+  const headers: Record<string, string> = {}
+  if (publishableKey) headers["x-publishable-api-key"] = publishableKey
+  try {
+    const res = await fetch(`${baseUrl}/store/cars/${productId}/reviews`, {
+      method: "GET",
+      headers,
+      next: { revalidate: 30 },
+    })
+    if (!res.ok) return []
+    const data = (await res.json()) as { reviews?: CarReview[] }
+    const list = data?.reviews ?? []
+    return Array.isArray(list)
+      ? list.map((r) => ({
+          id: r.id,
+          reviewer_name: r.reviewer_name ?? "Guest",
+          rating: Number(r.rating) || 0,
+          review_text: r.review_text ?? null,
+          created_at: r.created_at ?? new Date().toISOString(),
+        }))
+      : []
+  } catch {
+    return []
+  }
+}
+
 export async function getCarByHandle(
   countryCode: string,
   handle: string
@@ -298,6 +333,8 @@ export async function getCarByHandle(
     if (!p) return { car: null }
 
     const car = mapProductToCar(p)
+    const reviews = await fetchCarReviews(car.id)
+    car.reviews = reviews
     return { car }
   } catch (err) {
     return { car: null, error: err instanceof Error ? err.message : "Network error" }
@@ -326,10 +363,15 @@ export async function submitCarReview(
   input: SubmitReviewInput
 ): Promise<{ success: boolean; error?: string }> {
   const baseUrl = process.env.MEDUSA_BACKEND_URL || "http://localhost:9000"
+  const publishableKey = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  }
+  if (publishableKey) headers["x-publishable-api-key"] = publishableKey
   try {
     const res = await fetch(`${baseUrl}/store/cars/${productId}/reviews`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({
         reviewer_name: input.reviewer_name ?? "Guest",
         rating: Math.min(5, Math.max(1, Number(input.rating) || 1)),
@@ -368,7 +410,7 @@ export type SellCarInput = {
 
 export async function createCarListing(
   input: SellCarInput
-): Promise<{ success: boolean; handle?: string; error?: string }> {
+): Promise<{ success: boolean; submission_id?: string; error?: string }> {
   const baseUrl = process.env.MEDUSA_BACKEND_URL || "http://localhost:9000"
   const authHeaders = await getAuthHeaders()
   const token = "authorization" in authHeaders ? authHeaders.authorization : null
@@ -392,8 +434,60 @@ export async function createCarListing(
       return { success: false, error: (d as any)?.message || `Failed (${res.status})` }
     }
     const data = await res.json()
-    return { success: true, handle: data.handle }
+    return { success: true, submission_id: data.submission_id }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : "Network error" }
+  }
+}
+
+export type SellerCarSubmission = {
+  id: string
+  title: string
+  brand: string
+  car_model: string
+  year: string
+  fuel_type: string
+  transmission: string
+  city: string
+  expected_price: number
+  status: "pending" | "approved" | "rejected" | "sold"
+  product_id: string | null
+  rejection_reason: string | null
+  images: string[]
+  created_at: string
+}
+
+export async function listMyCarSubmissions(): Promise<{
+  submissions: SellerCarSubmission[]
+  error?: string
+}> {
+  const baseUrl = process.env.MEDUSA_BACKEND_URL || "http://localhost:9000"
+  const authHeaders = await getAuthHeaders()
+  const token = "authorization" in authHeaders ? authHeaders.authorization : null
+  if (!token) {
+    return { submissions: [], error: "Please sign in to view your listings." }
+  }
+  const publishableKey = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY
+  const headers: Record<string, string> = {
+    Authorization: token,
+  }
+  if (publishableKey) headers["x-publishable-api-key"] = publishableKey
+  try {
+    const res = await fetch(`${baseUrl}/store/seller-cars`, {
+      method: "GET",
+      headers,
+      cache: "no-store",
+    })
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}))
+      return { submissions: [], error: (d as any)?.message || `Failed (${res.status})` }
+    }
+    const data = await res.json()
+    return { submissions: data.submissions ?? [] }
+  } catch (err) {
+    return {
+      submissions: [],
+      error: err instanceof Error ? err.message : "Network error",
+    }
   }
 }

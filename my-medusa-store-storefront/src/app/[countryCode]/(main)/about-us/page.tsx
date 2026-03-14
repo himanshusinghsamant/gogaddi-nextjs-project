@@ -26,7 +26,7 @@ const BENEFITS = [
   "Transparent vehicle pricing with dealer discounts and seller specials.",
   "Verified safety information and comprehensive vehicle history reports.",
   "Authentic, real-time automotive news delivered at lightning speed.",
-  "Our mission: Convenince for buyers and maximum value for sellers.",
+  "Our mission: Convenience for buyers and maximum value for sellers.",
   "End-to-end help with finance, insurance, and warranty programs.",
 ]
 

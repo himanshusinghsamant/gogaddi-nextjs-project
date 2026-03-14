@@ -1,51 +1,19 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState } from "react"
 import TextField from "@modules/common/components/text-field"
 import Button from "@modules/common/components/button"
-
-function generateCaptcha(): string {
-  const chars = "abcdefghjkmnpqrstuvwxyz23456789"
-  let code = ""
-  for (let i = 0; i < 6; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length))
-  }
-  return code
-}
 
 export default function ContactForm() {
   const [firstName, setFirstName] = useState("")
   const [email, setEmail] = useState("")
   const [phone, setPhone] = useState("")
   const [enquiry, setEnquiry] = useState("")
-  const [captchaInput, setCaptchaInput] = useState("")
-  const [captchaCode, setCaptchaCode] = useState("")
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error" | "invalid_captcha">("idle")
+  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
   const [errorMessage, setErrorMessage] = useState("")
-  const captchaRef = useRef<string>("")
-
-  useEffect(() => {
-    const code = generateCaptcha()
-    captchaRef.current = code
-    setCaptchaCode(code)
-  }, [])
-
-  const refreshCaptcha = () => {
-    const code = generateCaptcha()
-    captchaRef.current = code
-    setCaptchaInput("")
-    setCaptchaCode(code)
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (captchaInput.toLowerCase() !== captchaRef.current.toLowerCase()) {
-      setStatus("invalid_captcha")
-      setCaptchaInput("")
-      refreshCaptcha()
-      return
-    }
-
     setStatus("loading")
     setErrorMessage("")
 
@@ -65,7 +33,6 @@ export default function ContactForm() {
       if (!res.ok) {
         setStatus("error")
         setErrorMessage(data?.message || "Something went wrong. Please try again.")
-        refreshCaptcha()
         return
       }
 
@@ -74,12 +41,9 @@ export default function ContactForm() {
       setEmail("")
       setPhone("")
       setEnquiry("")
-      setCaptchaInput("")
-      refreshCaptcha()
     } catch {
       setStatus("error")
       setErrorMessage("Network error. Please check your connection and try again.")
-      refreshCaptcha()
     }
   }
 
@@ -132,42 +96,6 @@ export default function ContactForm() {
           placeholder="Your message..."
         />
       </div>
-
-      <div>
-        <label htmlFor="captcha" className={`block mb-1.5 ${labelClass}`}>
-          Enter the code below
-        </label>
-        <div className="flex items-center gap-3 flex-wrap">
-          <input
-            id="captcha"
-            type="text"
-            value={captchaInput}
-            onChange={(e) => setCaptchaInput(e.target.value)}
-            className="max-w-[140px] px-3 py-2 rounded-2xl border border-slate-200 bg-slate-50/50 font-mono uppercase text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-            placeholder=""
-            autoComplete="off"
-            required
-          />
-          <div className="relative flex items-center justify-center w-32 h-10 bg-slate-100 border border-slate-200 rounded-xl overflow-hidden select-none">
-            <span className="relative font-mono text-lg font-bold tracking-widest text-slate-800">
-              {captchaCode}
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={refreshCaptcha}
-            className="text-sm text-blue-600 hover:text-blue-700 font-semibold"
-          >
-            Refresh
-          </button>
-        </div>
-      </div>
-
-      {status === "invalid_captcha" && (
-        <p className="text-red-600 text-sm font-medium">
-          The code you entered is incorrect. Please try again.
-        </p>
-      )}
 
       {status === "error" && (
         <p className="text-red-600 text-sm font-medium">

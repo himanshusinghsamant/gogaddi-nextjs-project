@@ -1,15 +1,17 @@
 "use client"
 
 import { useState } from "react"
-import { useParams, usePathname } from "next/navigation"
+import { useParams, usePathname, useRouter } from "next/navigation"
 import Link from "next/link"
 import { HttpTypes } from "@medusajs/types"
 import { signout } from "@lib/data/customer"
 
 export default function NavClient({ customer }: { customer: HttpTypes.StoreCustomer | null }) {
   const [open, setOpen] = useState(false)
+  const [mobileQuery, setMobileQuery] = useState("")
   const { countryCode } = useParams() as { countryCode: string }
   const pathname = usePathname() || `/${countryCode}`
+  const router = useRouter()
 
   const handleLogout = async () => {
     await signout(countryCode)
@@ -19,7 +21,6 @@ export default function NavClient({ customer }: { customer: HttpTypes.StoreCusto
   const links = [
     { href: `/${countryCode}`, label: "Home" },
     { href: `/${countryCode}/cars`, label: "Browse Cars" },
-    { href: `/${countryCode}/sell-car`, label: "Sell Car" },
     ...(customer
       ? [
           { href: `/${countryCode}/account`, label: "My Account" },
@@ -50,6 +51,23 @@ export default function NavClient({ customer }: { customer: HttpTypes.StoreCusto
         <>
           <div className="fixed inset-0 z-40 bg-black/30" onClick={() => setOpen(false)} />
           <div className="fixed top-16 left-0 right-0 z-50 bg-white border-b border-gray-200 shadow-lg p-4">
+            <form
+              className="mb-4"
+              onSubmit={(e) => {
+                e.preventDefault()
+                const q = mobileQuery.trim()
+                setOpen(false)
+                router.push(`/${countryCode}/cars${q ? `?query=${encodeURIComponent(q)}` : ""}`)
+              }}
+            >
+              <input
+                type="search"
+                value={mobileQuery}
+                onChange={(e) => setMobileQuery(e.target.value)}
+                placeholder="Search cars, brand, model..."
+                className="w-full h-11 pl-4 pr-4 rounded-xl border border-gray-200 text-gray-900 placeholder:text-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-400"
+              />
+            </form>
             <ul className="flex flex-col gap-1">
               {links.map((l) => (
                 <li key={l.href}>

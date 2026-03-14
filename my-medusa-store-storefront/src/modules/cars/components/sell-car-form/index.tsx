@@ -141,22 +141,24 @@ export default function SellCarForm() {
     })
     setLoading(false)
     if (!result.success) {
-      setError(result.error ?? "Failed to create listing. Please try again.")
+      setError(result.error ?? "Failed to submit car. Please try again.")
       return
     }
     setSuccess(true)
-    const redirectUrl = result.handle ? `/${countryCode}/cars/${result.handle}` : `/${countryCode}/cars`
-    setTimeout(() => router.push(redirectUrl), 2000)
+    setTimeout(() => router.push(`/${countryCode}/account/my-cars`), 2500)
   }
 
   if (success) {
     return (
       <div className="text-center py-12">
-        <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-6 text-3xl">
-          ✓
+        <div className="w-16 h-16 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mx-auto mb-6 text-3xl">
+          ⏳
         </div>
-        <h2 className="text-2xl font-black text-slate-900 mb-2 tracking-tight">Car Listed Successfully!</h2>
-        <p className="text-slate-500 font-medium">Your listing is live. Redirecting you to Cars…</p>
+        <h2 className="text-2xl font-black text-slate-900 mb-2 tracking-tight">Car Submitted for Review!</h2>
+        <p className="text-slate-600 font-medium max-w-sm mx-auto">
+          Your listing is under review by our team. We will notify you by email once it is approved and goes live.
+        </p>
+        <p className="text-slate-400 text-sm mt-4">Redirecting to My Listings…</p>
       </div>
     )
   }

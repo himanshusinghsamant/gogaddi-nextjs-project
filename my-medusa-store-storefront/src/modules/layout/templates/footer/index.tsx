@@ -1,13 +1,47 @@
 "use client"
 
-import React from "react"
+import React, { useState } from "react"
 import Image from "next/image"
 import { motion } from "framer-motion"
-import { Facebook, Twitter, Instagram, Youtube, Send, ArrowUpRight } from "lucide-react"
+import { Facebook, Twitter, Instagram, Youtube, Send, ArrowUpRight, Loader2, Check } from "lucide-react"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 
 export default function Footer() {
   const year = new Date().getFullYear()
+  const [email, setEmail] = useState("")
+  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
+  const [message, setMessage] = useState("")
+
+  async function handleNewsletterSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const value = email.trim()
+    if (!value) {
+      setStatus("error")
+      setMessage("Please enter your email address.")
+      return
+    }
+    setStatus("loading")
+    setMessage("")
+    try {
+      const res = await fetch("/api/newsletter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: value }),
+      })
+      const data = (await res.json().catch(() => ({}))) as { message?: string }
+      if (!res.ok) {
+        setStatus("error")
+        setMessage(data?.message ?? "Something went wrong. Please try again.")
+        return
+      }
+      setStatus("success")
+      setMessage(data?.message ?? "Thanks for subscribing!")
+      setEmail("")
+    } catch {
+      setStatus("error")
+      setMessage("Something went wrong. Please try again.")
+    }
+  }
 
   const footerLinks = {
     buy: [
@@ -87,19 +121,41 @@ export default function Footer() {
             <p className="text-xs text-gray-500 mb-6">
               Get the latest car launches and market trends delivered to your inbox.
             </p>
-            <form className="relative group">
+            <form onSubmit={handleNewsletterSubmit} className="relative group">
               <input
                 type="email"
                 placeholder="Email address"
-                className="w-full bg-white/5 border border-white/10 rounded-2xl py-3.5 pl-4 pr-12 text-sm text-white focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-300 group-hover:border-white/20"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={status === "loading" || status === "success"}
+                className="w-full bg-white/5 border border-white/10 rounded-2xl py-3.5 pl-4 pr-12 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-300 group-hover:border-white/20 disabled:opacity-60 disabled:cursor-not-allowed"
+                aria-label="Email for newsletter"
+                aria-invalid={status === "error"}
+                aria-describedby={message ? "newsletter-message" : undefined}
               />
               <button
                 type="submit"
-                className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-blue-600 hover:bg-blue-500 text-white rounded-xl flex items-center justify-center transition-all duration-300"
+                disabled={status === "loading" || status === "success"}
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/70 disabled:cursor-not-allowed text-white rounded-xl flex items-center justify-center transition-all duration-300"
+                aria-label="Subscribe"
               >
-                <Send size={16} />
+                {status === "loading" ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : status === "success" ? (
+                  <Check size={16} />
+                ) : (
+                  <Send size={16} />
+                )}
               </button>
             </form>
+            {message && (
+              <p
+                id="newsletter-message"
+                className={`mt-3 text-sm ${status === "error" ? "text-red-400" : "text-emerald-400"}`}
+              >
+                {message}
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -113,11 +169,17 @@ export default function Footer() {
             <LocalizedClientLink href="/sitemap" className="hover:text-white transition-colors">Sitemap</LocalizedClientLink>
           </div>
 
-          <div className="flex items-center gap-2">
-             <div className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-tighter">System Operational</span>
-             </div>
+          <div className="flex items-center gap-4 flex-wrap justify-center md:justify-end">
+            <LocalizedClientLink
+              href="/sell-car"
+              className="px-5 py-2.5 text-sm font-bold text-gray-900 bg-yellow-400 rounded-lg shadow-[0_4px_14px_0_rgba(250,204,21,0.39)] hover:bg-yellow-500 hover:shadow-[0_6px_20px_rgba(250,204,21,0.23)] transition-all duration-200 active:scale-95"
+            >
+              + Sell Car
+            </LocalizedClientLink>
+            <div className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2">
+              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+              <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-tighter">System Operational</span>
+            </div>
           </div>
         </div>
       </div>

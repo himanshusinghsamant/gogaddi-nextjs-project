@@ -8,26 +8,7 @@ import { formatCarPrice } from "@lib/util/format-car-price"
 import { PLACEHOLDER_IMAGE_URL } from "@lib/constants/placeholder-image"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 
-type TabKey = "popular" | "launched" | "upcoming"
-
-function Stars({ value = 4 }: { value?: number }) {
-  return (
-    <div className="flex items-center gap-0.5 mt-3">
-      {[1, 2, 3, 4, 5].map((i) => (
-        <span
-          key={i}
-          className={`text-sm ${i <= value ? "text-amber-400" : "text-slate-200"}`}
-          aria-hidden
-        >
-          ★
-        </span>
-      ))}
-      <span className="text-[10px] font-bold text-slate-400 ml-2 tracking-tighter uppercase">
-        {value}.0 Rating
-      </span>
-    </div>
-  )
-}
+type TabKey = "featured" | "newest" | "more"
 
 function CarMiniCard({ car }: { car: CarListItem }) {
   const img = car.thumbnail || car.images?.[0] || PLACEHOLDER_IMAGE_URL
@@ -61,12 +42,16 @@ function CarMiniCard({ car }: { car: CarListItem }) {
           </h3>
         </LocalizedClientLink>
         <div className="flex items-baseline gap-2 mt-1">
-          <span className="text-xs font-medium text-slate-400 uppercase tracking-widest">Starting at</span>
+          <span className="text-xs font-medium text-slate-400 uppercase tracking-widest">From</span>
           <p className="text-xl font-black text-slate-900">
             {formatCarPrice(car.price)}
           </p>
         </div>
-        <Stars value={4} />
+        {(car.car_type || car.fuel_type || car.year) && (
+          <p className="text-xs text-slate-500 mt-2">
+            {[car.car_type === "Used" ? "Old" : car.car_type, car.year, car.fuel_type].filter(Boolean).join(" · ")}
+          </p>
+        )}
 
         <LocalizedClientLink
           href={carHref}
@@ -80,26 +65,26 @@ function CarMiniCard({ car }: { car: CarListItem }) {
 }
 
 export default function FeaturedCarsTabs({
-  mostPopular,
-  justLaunched,
-  upcoming,
+  featured,
+  newest,
+  moreListings,
 }: {
-  mostPopular: CarListItem[]
-  justLaunched: CarListItem[]
-  upcoming: CarListItem[]
+  featured: CarListItem[]
+  newest: CarListItem[]
+  moreListings: CarListItem[]
 }) {
-  const [active, setActive] = useState<TabKey>("popular")
+  const [active, setActive] = useState<TabKey>("featured")
 
   const data = useMemo(() => ({
-    popular: mostPopular,
-    launched: justLaunched,
-    upcoming,
-  }), [mostPopular, justLaunched, upcoming])
+    featured,
+    newest,
+    more: moreListings,
+  }), [featured, newest, moreListings])
 
   const tabs: Array<{ key: TabKey; label: string }> = [
-    { key: "popular", label: "Most Popular" },
-    { key: "launched", label: "Just Launched" },
-    { key: "upcoming", label: "Upcoming" },
+    { key: "featured", label: "Featured" },
+    { key: "newest", label: "Newest" },
+    { key: "more", label: "More Listings" },
   ]
 
   return (
@@ -109,10 +94,10 @@ export default function FeaturedCarsTabs({
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-12">
           <div>
             <span className="text-indigo-600 font-black text-xs uppercase tracking-[0.3em] mb-3 block">
-              Curated Selection
+              Browse by category
             </span>
             <h2 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tighter">
-              Featured <span className="text-slate-400">Inventory.</span>
+              Featured <span className="text-slate-400">Cars</span>
             </h2>
           </div>
 
@@ -159,7 +144,7 @@ export default function FeaturedCarsTabs({
             href="/cars"
             className="group flex items-center gap-4 text-slate-400 hover:text-indigo-600 transition-colors"
           >
-            <span className="text-xs font-black uppercase tracking-[0.3em]">Explore Entire Fleet</span>
+            <span className="text-xs font-black uppercase tracking-[0.3em]">View all cars</span>
             <div className="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center group-hover:border-indigo-600 group-hover:bg-indigo-50 transition-all">
               <span className="text-lg group-hover:translate-x-1 transition-transform">→</span>
             </div>

@@ -8,6 +8,7 @@ import { retrieveCustomer } from "@lib/data/customer"
 
 type Props = {
   params: Promise<{ countryCode: string; handle: string }>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
 }
 
 export async function generateMetadata(props: Props): Promise<Metadata> {
@@ -20,6 +21,12 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
 
 export default async function CheckoutPage(props: Props) {
   const { countryCode, handle } = await props.params
+  const resolvedSearchParams = await props.searchParams
+  const variantIdParam = typeof resolvedSearchParams?.variant_id === "string"
+    ? resolvedSearchParams.variant_id
+    : Array.isArray(resolvedSearchParams?.variant_id)
+      ? resolvedSearchParams.variant_id[0]
+      : undefined
 
   const customer = await retrieveCustomer().catch(() => null)
   if (!customer) {
@@ -29,6 +36,16 @@ export default async function CheckoutPage(props: Props) {
   const { car } = await getCarByHandle(countryCode, handle)
 
   if (!car) notFound()
+
+  const versions = car.versions ?? []
+  const selectedVariant =
+    variantIdParam && versions.length > 0
+      ? versions.find((v) => v.id === variantIdParam) ?? versions[0]
+      : versions[0] ?? null
+  const variantId = selectedVariant?.id ?? ""
+  const { getVersionPrice } = await import("@lib/util/format-car-price")
+  const displayPrice = selectedVariant ? getVersionPrice(selectedVariant.prices) : null
+  const carPriceFormatted = displayPrice != null ? formatCarPrice(displayPrice) : formatCarPrice(car.price)
 
   const carUrl = `/${countryCode}/cars/${car.handle}`
 
@@ -88,14 +105,14 @@ export default async function CheckoutPage(props: Props) {
           <div className="lg:col-span-12">
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 md:p-8 lg:p-10">
               <CheckoutForm
-                variantId={car.versions?.[0]?.id ?? ""}
+                variantId={variantId}
                 countryCode={countryCode}
                 car={{
                   id: car.id,
                   handle: car.handle,
                   name: car.name,
                   brand: car.brand,
-                  price: formatCarPrice(car.price),
+                  price: carPriceFormatted,
                   city: car.city,
                   url: carUrl,
                   image_url: car.thumbnail || car.images?.[0] || null,

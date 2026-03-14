@@ -76,23 +76,33 @@ export function CarCard({ car, featured }: CarCardProps) {
           </p>
 
           {/* Metadata Grid */}
-          <div className="grid grid-cols-2 gap-3 pt-4 border-t border-slate-100">
-            <div className="flex items-center gap-2 text-slate-500">
-              <Fuel size={14} className="text-blue-500 shrink-0" />
-              <span className="text-xs font-medium truncate">{car.fuel_type || "Petrol"}</span>
-            </div>
-            <div className="flex items-center gap-2 text-slate-500">
-              <Gauge size={14} className="text-blue-500 shrink-0" />
-              <span className="text-xs font-medium truncate">{car.mileage ?? "—"} kmpl</span>
+          <div className="grid grid-cols-2 gap-2 pt-4 border-t border-slate-100">
+            {car.car_type && (
+              <p className="text-xs text-slate-500 truncate font-medium">
+                {car.car_type === "Used" ? "Old" : car.car_type}
+              </p>
+            )}
+            {car.year && <p className="text-xs text-slate-500 truncate">{car.year}</p>}
+            {car.fuel_type && (
+              <div className="flex items-center gap-1.5 text-slate-500">
+                <Fuel size={12} className="text-blue-500 shrink-0" />
+                <span className="text-xs font-medium truncate">{car.fuel_type}</span>
+              </div>
+            )}
+            {car.transmission && <p className="text-xs text-slate-500 truncate">{car.transmission}</p>}
+            <div className="flex items-center gap-1.5 text-slate-500">
+              <Gauge size={12} className="text-blue-500 shrink-0" />
+              <span className="text-xs font-medium truncate">{car.mileage ? `${car.mileage} kmpl` : "—"}</span>
             </div>
           </div>
+          {car.city && <p className="text-xs text-slate-400 mt-2 truncate">{car.city}</p>}
 
           <div className="mt-6">
             <LocalizedClientLink
               href={`/cars/${car.handle ?? car.id}`}
               className="flex items-center justify-center w-full py-3 rounded-xl bg-slate-50 text-slate-900 text-sm font-bold transition-all group-hover:bg-blue-600 group-hover:text-white"
             >
-              View Configuration
+              View Details
             </LocalizedClientLink>
           </div>
         </div>
@@ -114,7 +124,7 @@ export default function FeaturedCarsSection({ featuredCars }: { featuredCars: Ca
             >
               Featured <span className="text-blue-600">Inventory.</span>
             </motion.h2>
-            <p className="text-slate-500 mt-2 font-light">Hand-picked deals based on market performance and quality.</p>
+            <p className="text-slate-500 mt-2 font-light">Featured listings from verified sellers.</p>
           </div>
 
           <LocalizedClientLink

@@ -5,7 +5,6 @@ import { Metadata } from "next"
 import { Suspense } from "react"
 import CarCard from "@modules/cars/components/car-card"
 import CarFilters from "@modules/cars/components/car-filters"
-import CategoryFilterBar from "@modules/cars/components/category-filter-bar"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 
 export const metadata: Metadata = {
@@ -33,6 +32,7 @@ function filterAndSort(
   cars: CarListItem[],
   params: {
     category?: string
+    carType?: string
     maxPrice?: string
     brand?: string
     fuelType?: string
@@ -48,6 +48,10 @@ function filterAndSort(
   }
 ): CarListItem[] {
   let result = [...cars]
+  if (params.carType) {
+    const type = params.carType.trim().toLowerCase()
+    result = result.filter((c) => (c.car_type ?? "").toLowerCase() === type)
+  }
   // Category filter: match by product's category_handles (Medusa categories). If no match, also match by
   // model/handle so that when a category option has the same value as a model (e.g. "maruti-suzuki-a-star"),
   // cars still show even if the product isn't linked to that category in the backend.
@@ -117,6 +121,7 @@ function filterAndSort(
 
 type SearchParams = Promise<{
   category?: string
+  carType?: string
   maxPrice?: string
   brand?: string
   fuelType?: string
@@ -143,6 +148,7 @@ const MAX_PRICE_OPTIONS: { value: string; label: string }[] = [
 
 const FILTER_LABELS: Record<string, string> = {
   category: "Category",
+  carType: "Type",
   maxPrice: "Max Price",
   brand: "Brand",
   fuelType: "Fuel",
@@ -169,8 +175,6 @@ export default async function CarsListingPage(props: {
     getCarFilterOptions(cars),
     getRootCategoriesForSitemap(),
   ])
-
-  console.log("cars ------>", cars)
 
   // value = slug for URL/filter; label = display only e.g. { value: "maruti-suzuki-alto-800", label: "--Maruti Suzuki Alto 800--" }
   const categoryOptions = (() => {
@@ -211,6 +215,7 @@ export default async function CarsListingPage(props: {
 
   const activeFilters = {
     category: sp.category,
+    carType: sp.carType,
     maxPrice: sp.maxPrice,
     brand: sp.brand,
     fuelType: sp.fuelType,
@@ -224,6 +229,15 @@ export default async function CarsListingPage(props: {
     priceMax: sp.priceMax,
     sortBy: sp.sortBy,
   }
+
+  const maxPriceOptionsForSidebar: { value: string; label: string }[] = [
+    { value: "", label: "Any budget" },
+    { value: "300000", label: "Max 3 Lacs" },
+    { value: "600000", label: "Max 6 Lacs" },
+    { value: "1000000", label: "Max 10 Lacs" },
+    { value: "2000000", label: "Max 20 Lacs" },
+    { value: "20_plus", label: "20+ Lacs" },
+  ]
 
   const hasFilters = Object.values(activeFilters).some(Boolean)
   const filterEntries = Object.entries(activeFilters).filter(([, v]) => v)
@@ -251,18 +265,16 @@ export default async function CarsListingPage(props: {
         </div>
       </section>
 
-      <CategoryFilterBar
-        categories={categoryOptions}
-        categoryValue={sp.category ?? ""}
-        maxPriceOptions={MAX_PRICE_OPTIONS}
-        maxPriceValue={sp.maxPrice ?? ""}
-      />
-
       <div className="content-container py-8 lg:py-10">
         <div className="flex flex-col lg:flex-row gap-8 lg:gap-10">
-          {/* Sidebar */}
+          {/* Side filter bar: category, price, and all filters */}
           <Suspense fallback={<div className="lg:w-72 shrink-0 h-64 bg-slate-100 rounded-2xl animate-pulse" />}>
-            <CarFilters options={filterOptions} active={activeFilters} />
+            <CarFilters
+              options={filterOptions}
+              active={activeFilters}
+              categoryOptions={categoryOptions}
+              maxPriceOptions={maxPriceOptionsForSidebar}
+            />
           </Suspense>
 
           {/* Main */}

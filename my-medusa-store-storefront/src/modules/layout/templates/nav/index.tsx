@@ -4,6 +4,7 @@ import { retrieveCustomer } from "@lib/data/customer"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import NavClient from "@modules/layout/templates/nav/nav-client"
 import NavLinks from "@modules/layout/templates/nav/nav-links"
+import HeaderSearchBar from "@modules/layout/components/header-search-bar"
 
 export default async function Nav() {
   const customer = await retrieveCustomer().catch(() => null)
@@ -35,17 +36,15 @@ export default async function Nav() {
               links={[
                 { href: "/", label: "Home", exact: true },
                 { href: "/cars", label: "Browse Cars" },
-                {
-                  href: "/sell-car",
-                  label: "+ Sell Car",
-                  className:
-                    "ml-1 px-5 py-2 text-sm font-bold text-gray-900 bg-yellow-400 rounded-lg shadow-[0_4px_14px_0_rgba(250,204,21,0.39)] hover:bg-yellow-500 hover:shadow-[0_6px_20px_rgba(250,204,21,0.23)] transition-all duration-200 active:scale-95",
-                  activeClassName:
-                    "ring-4 ring-yellow-400/30",
-                  exact: true,
-                },
               ]}
             />
+          </div>
+
+          {/* Header search - navigates to /cars with query */}
+          <div className="hidden md:flex flex-1 min-w-0 max-w-xl mx-2 lg:mx-4">
+            <Suspense fallback={<div className="w-full h-10 rounded-xl bg-slate-100 animate-pulse" />}>
+              <HeaderSearchBar />
+            </Suspense>
           </div>
 
           {/* Right side - Dynamic Account Interaction */}
