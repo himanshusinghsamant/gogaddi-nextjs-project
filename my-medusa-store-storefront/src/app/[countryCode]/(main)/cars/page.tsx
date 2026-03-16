@@ -178,6 +178,9 @@ export default async function CarsListingPage(props: {
     getRootCategoriesForSitemap(),
   ])
 
+
+  console.log("cars ------> ", cars)
+
   // value = slug for URL/filter; label = display only e.g. { value: "maruti-suzuki-alto-800", label: "--Maruti Suzuki Alto 800--" }
   const categoryOptions = (() => {
     const flat: { value: string; label: string }[] = [{ value: "", label: "--All Categories--" }]

@@ -50,6 +50,7 @@ function FilterPill({
 }) {
   const [open, setOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const displayOptions = options.filter((o) => o.value !== "")
 
   useEffect(() => {
     setMounted(true)
@@ -120,7 +121,7 @@ function FilterPill({
                 {!value && <Check size={18} />}
               </button>
 
-              {options.map((opt) => (
+              {displayOptions.map((opt) => (
                 <button
                   key={opt.value}
                   onClick={() => {
