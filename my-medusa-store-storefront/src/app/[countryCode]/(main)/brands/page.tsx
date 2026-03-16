@@ -78,6 +78,16 @@ function filenameToBrandKey(filename: string) {
   return normalizeBrandKey(base)
 }
 
+// Collapse noisy brand strings like "Maruti Suzuki Swift LXI" into a clean
+// brand label such as "Maruti Suzuki".
+function canonicalBrandName(name: string): string {
+  const clean = name.trim()
+  if (!clean) return name
+  const parts = clean.split(/\s+/)
+  if (parts.length <= 2) return clean
+  return `${parts[0]} ${parts[1]}`
+}
+
 async function getBrandLogoMapFromPublic(): Promise<Record<string, string>> {
   try {
     const dir = path.join(process.cwd(), "public", "brands-logo")
@@ -136,7 +146,10 @@ export default async function BrandsPage(props: {
   const logoMap = await getBrandLogoMapFromPublic()
 
   const allBrandNames = Array.from(
-    new Set([...apiBrands, ...FALLBACK_BRANDS].filter(Boolean))
+    new Set([
+      ...apiBrands.map(canonicalBrandName),
+      ...FALLBACK_BRANDS,
+    ].filter(Boolean))
   ).sort((a, b) => a.localeCompare(b, "en"))
 
   const byLetter = allBrandNames.reduce<Record<string, string[]>>((acc, name) => {

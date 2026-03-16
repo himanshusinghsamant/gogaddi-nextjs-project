@@ -47,7 +47,7 @@ export default function HeroCarousel({ children }: { children: React.ReactNode }
   }
 
   return (
-    <section className="relative w-full h-screen min-h-[600px] overflow-hidden bg-black">
+    <section className="relative w-full min-h-[640px] md:min-h-[720px] lg:min-h-[760px] overflow-hidden bg-black">
       <div className="hero-slick absolute inset-0 z-0 h-full w-full">
         {mounted ? (
           <Slider {...settings}>
@@ -60,8 +60,10 @@ export default function HeroCarousel({ children }: { children: React.ReactNode }
         )}
       </div>
 
-      <div className="relative z-20 w-full h-full flex flex-col justify-center content-container">
-        {children}
+      <div className="relative z-20 w-full h-full flex items-center">
+        <div className="content-container w-full py-16 md:py-0">
+          {children}
+        </div>
       </div>
 
       <style jsx global>{`

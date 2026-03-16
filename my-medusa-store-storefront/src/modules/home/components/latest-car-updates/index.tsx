@@ -23,7 +23,7 @@ export default function LatestCarUpdates() {
   if (!main) return null
 
   return (
-    <section className="bg-white py-24 overflow-hidden">
+    <section className="bg-white overflow-hidden">
       <div className="content-container">
         {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-6">

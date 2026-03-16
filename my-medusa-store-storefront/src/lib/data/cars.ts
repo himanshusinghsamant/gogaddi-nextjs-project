@@ -491,3 +491,57 @@ export async function listMyCarSubmissions(): Promise<{
     }
   }
 }
+
+// ─── Test drive bookings ─────────────────────────────────────────────────────
+
+export type TestDriveBooking = {
+  id: string
+  car_id: string
+  car_title: string | null
+  name: string
+  email: string
+  phone: string
+  city: string
+  preferred_date: string
+  preferred_time: string
+  message: string | null
+  status: "pending" | "email_verified" | "confirmed" | "cancelled"
+  is_email_verified: boolean
+  created_at: string
+  updated_at: string
+}
+
+export async function listMyTestDriveBookings(): Promise<{
+  bookings: TestDriveBooking[]
+  error?: string
+}> {
+  const baseUrl = process.env.MEDUSA_BACKEND_URL || "http://localhost:9000"
+  const authHeaders = await getAuthHeaders()
+  const token = "authorization" in authHeaders ? authHeaders.authorization : null
+  if (!token) {
+    return { bookings: [], error: "Please sign in to view your test drive bookings." }
+  }
+  const publishableKey = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY
+  const headers: Record<string, string> = {
+    Authorization: token,
+  }
+  if (publishableKey) headers["x-publishable-api-key"] = publishableKey
+  try {
+    const res = await fetch(`${baseUrl}/store/car-bookings`, {
+      method: "GET",
+      headers,
+      cache: "no-store",
+    })
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}))
+      return { bookings: [], error: (d as any)?.message || `Failed (${res.status})` }
+    }
+    const data = await res.json()
+    return { bookings: data.bookings ?? [] }
+  } catch (err) {
+    return {
+      bookings: [],
+      error: err instanceof Error ? err.message : "Network error",
+    }
+  }
+}

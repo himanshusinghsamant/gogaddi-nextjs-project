@@ -4,6 +4,7 @@ import CarSpecification from "../models/car-specification"
 import CarReview from "../models/car-review"
 import CarRelated from "../models/car-related"
 import SellerCar from "../models/seller-car"
+import CarBooking from "../models/car-booking"
 
 class CarsModuleService extends MedusaService({
   CarFeature,
@@ -11,6 +12,7 @@ class CarsModuleService extends MedusaService({
   CarReview,
   CarRelated,
   SellerCar,
+  CarBooking,
 }) {
   // ── Car Features ─────────────────────────────────────────────────────
   async addFeature(productId: string, feature: { feature_name: string; feature_value?: string }) {
@@ -108,6 +110,59 @@ class CarsModuleService extends MedusaService({
     if (!(items as any[]).length) return null
     const item = (items as any[])[0]
     return this.updateSellerCars({ id: item.id, status: "sold" } as any)
+  }
+
+  // ── Car Bookings (Test Drive) ─────────────────────────────────────────
+  async createBooking(data: {
+    customer_id?: string | null
+    car_id: string
+    car_title?: string | null
+    name: string
+    email: string
+    phone: string
+    city: string
+    preferred_date: string
+    preferred_time: string
+    message?: string | null
+    verification_token: string
+  }) {
+    return this.createCarBookings({
+      customer_id: data.customer_id ?? null,
+      car_id: data.car_id,
+      car_title: data.car_title ?? null,
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
+      city: data.city,
+      preferred_date: data.preferred_date,
+      preferred_time: data.preferred_time,
+      message: data.message ?? null,
+      verification_token: data.verification_token,
+      status: "pending",
+      is_email_verified: false,
+    } as any)
+  }
+
+  async getBookingByToken(token: string) {
+    const results = await this.listCarBookings({ verification_token: token } as any)
+    return (results as any[])[0] ?? null
+  }
+
+  async getBooking(id: string) {
+    const results = await this.listCarBookings({ id } as any)
+    return (results as any[])[0] ?? null
+  }
+
+  async listAllBookings(filters?: Record<string, any>) {
+    return this.listCarBookings(filters ?? {})
+  }
+
+  async verifyBookingEmail(id: string) {
+    return this.updateCarBookings({ id, is_email_verified: true, status: "email_verified" } as any)
+  }
+
+  async updateBookingStatus(id: string, status: "confirmed" | "cancelled") {
+    return this.updateCarBookings({ id, status } as any)
   }
 }
 

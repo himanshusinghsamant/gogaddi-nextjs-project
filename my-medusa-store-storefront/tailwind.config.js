@@ -34,13 +34,20 @@ module.exports = {
           80: "#1F2937",
           90: "#111827",
         },
+        brand: {
+          primary: "#000000", // Luxury Black
+          secondary: "#3B82F6", // Electric Blue Accent
+          accent: "#FACC15", // Gold/Yellow for subtle highlights
+          dark: "#09090B",
+          light: "#FAFAFA",
+        }
       },
       borderRadius: {
         none: "0px",
-        soft: "2px",
-        base: "4px",
-        rounded: "8px",
-        large: "16px",
+        soft: "4px",
+        base: "8px",
+        rounded: "12px",
+        large: "24px",
         circle: "9999px",
       },
       maxWidth: {

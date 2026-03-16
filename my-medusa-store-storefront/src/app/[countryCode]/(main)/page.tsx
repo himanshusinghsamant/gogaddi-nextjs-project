@@ -15,10 +15,12 @@ import HeroCarousel from "@modules/home/components/hero-carousel"
 import HeroQuickFilters from "@modules/home/components/hero-quick-filters"
 import WhyChooseUs from "@modules/home/components/why-choose-us"
 import CTASection from "@modules/home/components/cta-section"
+import HowItWorks from "@modules/home/components/how-it-works"
+import { ArrowRight } from "lucide-react"
 
 export const metadata: Metadata = {
-  title: "GoGaddi — Find Your Perfect Car",
-  description: "Browse thousands of cars. Search, compare and find the best deal.",
+  title: "GoGaddi — Premium Car Marketplace",
+  description: "Experience the future of car buying. Verified premium cars, seamless financing, and doorstep delivery.",
 }
 
 /** Fallback brand names when API returns none (e.g. empty catalog). */
@@ -29,6 +31,9 @@ const FALLBACK_BRANDS = [
   "Toyota",
   "Mahindra",
   "Tata",
+  "Mercedes Benz",
+  "BMW",
+  "Audi"
 ]
 
 const LOGO_OVERRIDES_BY_BRAND_KEY: Record<string, string> = {
@@ -155,119 +160,199 @@ export default async function HomePage(props: {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 overflow-x-hidden">
+    <div className="min-h-screen bg-white overflow-x-hidden">
       {/* ── Hero (carousel) ───────────────────────────────────────────────── */}
       <HeroCarousel>
-        <div className="relative content-container py-20 md:py-28 z-20">
-          <div className="max-w-3xl mx-auto text-center mb-10">
-            <p className="text-blue-300 font-semibold text-sm uppercase tracking-widest mb-3 drop-shadow-md">
-              India's Trusted Car Marketplace
-            </p>
-            <h1 className="text-4xl md:text-6xl font-extrabold mb-5 leading-tight text-white drop-shadow-lg">
-              Find Your <span className="text-yellow-400">Perfect Car</span>
+        <div className="relative w-full z-20 flex flex-col justify-center">
+          <div className="w-full md:pt-10">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white/90 text-xs font-medium uppercase tracking-widest mb-6">
+              <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+              Premium Auto Marketplace
+            </div>
+            
+            <h1 className="text-2xl md:text-5xl lg:text-6xl font-black mb-6 leading-[1.1] text-white tracking-tight">
+              Drive the <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-white">Extraordinary</span>
             </h1>
-            <p className="text-blue-100 text-lg md:text-xl drop-shadow-md font-medium">
-              Explore {cars.length}+ cars from top brands. Buy, sell and discover with confidence.
+            
+            <p className="text-blue-100/80 text-lg md:text-xl font-light max-w-xl mb-6 leading-relaxed">
+              Discover a curated collection of verified premium vehicles. 
+              Buy, sell, and upgrade with complete confidence.
             </p>
-          </div>
 
-          <HeroQuickFilters />
-
-          <Suspense>
-            <CarSearchBar
-              brands={filterOptions.brands}
-              fuelTypes={filterOptions.fuelTypes}
-              cities={filterOptions.cities}
-            />
-          </Suspense>
-
-          <div className="flex flex-wrap justify-center gap-8 mt-10 text-center">
-            {[
-              { value: `${cars.length}+`, label: "Cars Listed" },
-              { value: `${filterOptions.brands.length}+`, label: "Brands" },
-              { value: "100%", label: "Verified" },
-            ].map((s) => (
-              <div key={s.label} className="backdrop-blur-sm bg-white/10 rounded-lg p-4 min-w-[120px]">
-                <p className="text-3xl font-extrabold text-yellow-400 drop-shadow-md">{s.value}</p>
-                <p className="text-white text-sm mt-1 font-semibold">{s.label}</p>
+            <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-6 rounded-2xl max-w-3xl shadow-2xl">
+              <HeroQuickFilters />
+              <div className="mt-6">
+                <Suspense>
+                  <CarSearchBar
+                    brands={filterOptions.brands}
+                    fuelTypes={filterOptions.fuelTypes}
+                    cities={filterOptions.cities}
+                  />
+                </Suspense>
               </div>
-            ))}
+            </div>
+
+            <div className="flex gap-12 mt-5 border-t border-white/10 pt-5 max-w-2xl">
+              {[
+                { value: `${cars.length}+`, label: "Premium Cars" },
+                { value: `${filterOptions.brands.length}+`, label: "Global Brands" },
+                { value: "100%", label: "Quality Verified" },
+              ].map((s) => (
+                <div key={s.label}>
+                  <p className="text-3xl md:text-4xl font-bold text-white mb-1">{s.value}</p>
+                  <p className="text-blue-200/60 text-sm uppercase tracking-wider">{s.label}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </HeroCarousel>
 
-      {/* ── Featured Cars + Latest Updates (as per reference) ─────────────── */}
-      <div className="bg-white">
-        <FeaturedCarsTabs
-          featured={featuredTabs.featured}
-          newest={featuredTabs.newest}
-          moreListings={featuredTabs.moreListings}
-        />
-        <LatestCarUpdates />
-      </div>
-
       {/* ── Popular Brands ───────────────────────────────────────────────── */}
-      <section className="py-14">
-        <div className="content-container flex items-center justify-between mb-8">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Browse by Brand</h2>
-            <p className="text-gray-500 text-sm mt-1">Find cars from verified sellers by brand</p>
+      <section className="py-16 md:py-20 bg-white">
+        <div className="content-container">
+          <div className="flex flex-col md:flex-row items-center md:items-end justify-between mb-6 md:mb-12 gap-4">
+            <div className="w-full md:w-auto">
+              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">Explore by Brand</h2>
+              <p className="text-gray-500">Discover vehicles from the world's most prestigious manufacturers.</p>
+            </div>
+            {/* Desktop link */}
+            <LocalizedClientLink
+              href="/brands"
+              className="hidden md:inline-flex items-center gap-1.5 text-blue-600 font-semibold hover:text-blue-700 hover:underline whitespace-nowrap"
+            >
+              <span>View all brands</span>
+              <ArrowRight size={16} className="translate-x-0 group-hover:translate-x-0.5 transition-transform" />
+            </LocalizedClientLink>
           </div>
-          <LocalizedClientLink href="/brands" className="text-blue-600 hover:underline text-sm font-medium">
-            All brands →
-          </LocalizedClientLink>
-        </div>
-
-        {/* Full-width logo slider (edge to edge, no overflow) */}
-        {brandLogoItems.length > 0 && (
-          <div className="w-full py-8 md:py-12 bg-gray-50/80">
-            <BrandLogoSlider items={brandLogoItems} />
+          {/* Mobile primary CTA */}
+          <div className="mb-10 md:hidden">
+            <LocalizedClientLink
+              href="/brands"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-md shadow-blue-500/30 hover:bg-blue-700 active:scale-[0.99] transition"
+            >
+              <span>View all brands</span>
+              <ArrowRight size={16} className="opacity-80" />
+            </LocalizedClientLink>
           </div>
-        )}
 
-        <div className="content-container mt-14 grid grid-cols-4 md:grid-cols-8 gap-3">
-          {brands.slice(0, 8).map((brandName) => {
-            const imageSrc = brandCarImages[brandName]
-            return (
-              <LocalizedClientLink
-                key={brandName}
-                href={`/cars?brand=${encodeURIComponent(brandName)}`}
-                className="flex flex-col items-center gap-2 bg-white rounded-xl border border-gray-200 p-3 hover:border-blue-400 hover:shadow-md transition-all group overflow-hidden"
-              >
-                <div className="relative w-14 h-14 md:w-16 md:h-16 rounded-lg overflow-hidden flex items-center justify-center shrink-0">
-                  {imageSrc ? (
-                    <Image
-                      src={imageSrc}
-                      alt={`${brandName} car`}
-                      fill
-                      className="object-contain group-hover:scale-105 transition-transform duration-300"
-                      sizes="(max-width: 768px) 56px, 128px"
-                      quality={95}
-                      unoptimized={imageSrc.startsWith("/all-brands-car/")}
-                    />
-                  ) : (
-                    <span className="text-xl font-bold text-gray-400">
-                      {brandName.charAt(0)}
-                    </span>
-                  )}
-                </div>
-                <span className="text-xs font-medium text-gray-700 text-center leading-tight group-hover:text-blue-600 transition-colors line-clamp-2">
-                  {brandName}
-                </span>
-              </LocalizedClientLink>
-            )
-          })}
+          {/* Full-width logo slider */}
+          {brandLogoItems.length > 0 && (
+            <div className="mb-16">
+              <BrandLogoSlider items={brandLogoItems} />
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
+            {brands.slice(0, 8).map((brandName) => {
+              const imageSrc = brandCarImages[brandName]
+              return (
+                <LocalizedClientLink
+                  key={brandName}
+                  href={`/cars?brand=${encodeURIComponent(brandName)}`}
+                  className="group relative aspect-square bg-gray-50 rounded-2xl overflow-hidden border border-gray-100 hover:border-blue-500 hover:shadow-xl transition-all duration-300"
+                >
+                  <div className="absolute inset-0 p-4 flex flex-col items-center justify-center z-10">
+                    {imageSrc ? (
+                      <div className="relative w-full h-full">
+                        <Image
+                          src={imageSrc}
+                          alt={`${brandName} car`}
+                          fill
+                          className="object-contain group-hover:scale-110 transition-transform duration-500"
+                          sizes="(max-width: 768px) 100px, 150px"
+                        />
+                      </div>
+                    ) : (
+                      <span className="text-4xl font-black text-gray-200 group-hover:text-blue-100 transition-colors">
+                        {brandName.charAt(0)}
+                      </span>
+                    )}
+                  </div>
+                  <div className="absolute bottom-0 left-0 right-0 p-3 bg-white/90 backdrop-blur-sm border-t border-gray-100 translate-y-full group-hover:translate-y-0 transition-transform duration-300 z-20">
+                    <p className="text-center text-xs font-bold text-gray-900 uppercase tracking-wider">{brandName}</p>
+                  </div>
+                </LocalizedClientLink>
+              )
+            })}
+          </div>
         </div>
       </section>
 
-      {/* ── Featured Cars ────────────────────────────────────────────────── */}
-      {featuredCars.length > 0 && <FeaturedCarsSection featuredCars={featuredCars} />}
+      {/* ── Featured Cars Tabs ───────────────────────────────────────────── */}
+      <section className="py-10 md:py-16 bg-gray-50">
+        <div className="content-container">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Curated For You</h2>
+            <p className="text-gray-500 max-w-2xl mx-auto">
+              Handpicked selections from our premium inventory, inspected for quality and performance.
+            </p>
+          </div>
+          <FeaturedCarsTabs
+            featured={featuredTabs.featured}
+            newest={featuredTabs.newest}
+            moreListings={featuredTabs.moreListings}
+          />
+        </div>
+      </section>
 
-      {/* ── Latest Cars ──────────────────────────────────────────────────── */}
-      {latestCars.length > 0 && <LatestArrivals latestCars={latestCars} />}
+      {/* ── How It Works ─────────────────────────────────────────────────── */}
+      <div className="py-10 md:py-16 bg-white">
+        <HowItWorks />
+      </div>
+
+      {/* ── Featured Cars Grid ───────────────────────────────────────────── */}
+      {featuredCars.length > 0 && (
+        <section className="py-10 md:py-16 bg-white">
+          <div className="content-container">
+            <div className="flex items-end justify-between gap-4">
+              <h2 className="text-3xl font-bold text-gray-900 w-full md:w-auto">Trending Now</h2>
+              {/* Desktop link */}
+              <LocalizedClientLink
+                href="/cars"
+                className="hidden md:inline-flex items-center gap-1.5 text-blue-600 font-semibold hover:text-blue-700 hover:underline whitespace-nowrap"
+              >
+                <span>View inventory</span>
+                <ArrowRight size={16} className="translate-x-0 group-hover:translate-x-0.5 transition-transform" />
+              </LocalizedClientLink>
+            </div>
+            {/* Mobile primary CTA */}
+            <div className="mt-4 md:hidden">
+              <LocalizedClientLink
+                href="/cars"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-md shadow-blue-500/30 hover:bg-blue-700 active:scale-[0.99] transition"
+              >
+                <span>View inventory</span>
+                <ArrowRight size={16} className="opacity-80" />
+              </LocalizedClientLink>
+            </div>
+            <FeaturedCarsSection featuredCars={featuredCars} />
+          </div>
+        </section>
+      )}
 
       {/* ── Why Choose Us ────────────────────────────────────────────────── */}
-      <WhyChooseUs />
+      <div className="py-10 md:py-16">
+        <WhyChooseUs />
+      </div>
+
+      {/* ── Latest Arrivals ──────────────────────────────────────────────── */}
+      {latestCars.length > 0 && (
+        <section className="py-10 md:py-16 bg-gray-50">
+          <div className="content-container">
+            <div className="flex items-end justify-between">
+              <h2 className="text-3xl font-bold text-gray-900">Just Arrived</h2>
+            </div>
+            <LatestArrivals latestCars={latestCars} />
+          </div>
+        </section>
+      )}
+
+      {/* ── Latest Updates ───────────────────────────────────────────────── */}
+      <div className="bg-gray-50 py-10 md:py-16">
+        <LatestCarUpdates />
+      </div>
 
       {/* ── CTA Band ─────────────────────────────────────────────────────── */}
       <CTASection />

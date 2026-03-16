@@ -35,9 +35,9 @@ export default function CarSearchBar({ brands, fuelTypes, cities }: Props) {
   return (
     <form
       onSubmit={handleSearch}
-      className="bg-white rounded-2xl shadow-xl p-4 md:p-6 w-full max-w-4xl mx-auto"
+      className="bg-white rounded-3xl shadow-2xl shadow-black/20 p-4 md:p-6 w-full max-w-4xl mx-auto"
     >
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <SelectField
           label="Brand"
           options={brands}

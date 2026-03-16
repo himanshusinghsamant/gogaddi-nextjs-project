@@ -5,92 +5,88 @@ import LocalizedClientLink from "@modules/common/components/localized-client-lin
 import NavClient from "@modules/layout/templates/nav/nav-client"
 import NavLinks from "@modules/layout/templates/nav/nav-links"
 import HeaderSearchBar from "@modules/layout/components/header-search-bar"
+import { User } from "lucide-react"
 
 export default async function Nav() {
   const customer = await retrieveCustomer().catch(() => null)
 
   return (
-    <div className="sticky top-0 inset-x-0 z-50 pointer-events-none">
-      <header className="max-w-7xl mx-auto pointer-events-auto px-2 md:px-4 py-2 md:py-4">
-        <nav className="relative flex items-center justify-between h-16 px-6 rounded-2xl border border-white/20 bg-white/80 backdrop-blur-md shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] transition-all duration-300 hover:shadow-[0_8px_32px_0_rgba(31,38,135,0.12)]">
-          
-          {/* Logo with subtle scale effect */}
+    <header className="sticky top-0 inset-x-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200/60 transition-all duration-200">
+      <div className="max-w-[1440px] mx-auto px-4 md:px-8 h-16 md:h-20 flex items-center justify-between gap-4 md:gap-8">
+        {/* Logo */}
+        <div className="flex-shrink-0">
           <LocalizedClientLink
             href="/"
-            className="flex items-center shrink-0 transition-transform duration-300 hover:scale-105 active:scale-95"
+            className="block hover:opacity-90 transition-opacity"
             data-testid="nav-store-link"
           >
             <Image
               src="/gogaddi-logo.webp"
-              alt="GoGaddi - India's Trusted Car Marketplace"
-              width={160}
-              height={44}
-              className="h-8 w-auto object-contain brightness-0"
+              alt="GoGaddi"
+              width={140}
+              height={40}
+              className="h-8 md:h-9 w-auto object-contain brightness-0"
               priority
             />
           </LocalizedClientLink>
+        </div>
 
-          {/* Desktop links - Modern Pill Design */}
-          <div className="hidden md:flex items-center gap-1 bg-gray-100/50 p-1 rounded-xl border border-gray-200/50">
-            <NavLinks
-              links={[
-                { href: "/", label: "Home", exact: true },
-                { href: "/cars", label: "Browse Cars" },
-              ]}
-            />
+        {/* Desktop Navigation */}
+        <div className="hidden md:flex items-center gap-1">
+          <NavLinks
+            links={[
+              { href: "/", label: "Home", exact: true },
+              { href: "/cars", label: "Browse Cars" },
+            ]}
+          />
+        </div>
+
+        {/* Search Bar (Desktop) */}
+        <div className="hidden md:block flex-1 max-w-md">
+          <Suspense fallback={<div className="w-full h-10 rounded-xl bg-slate-100 animate-pulse" />}>
+            <HeaderSearchBar />
+          </Suspense>
+        </div>
+
+        {/* Right Actions */}
+        <div className="flex items-center gap-3 md:gap-4">
+          {/* Account Link (Desktop) */}
+          <div className="hidden md:block">
+            {customer ? (
+              <LocalizedClientLink
+                href="/account"
+                className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-slate-50 transition-colors group"
+                data-testid="nav-account-link"
+              >
+                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                  {customer.first_name?.charAt(0) ?? customer.email?.charAt(0) ?? "U"}
+                </div>
+                <div className="text-sm">
+                  <p className="font-medium text-slate-700 group-hover:text-slate-900 leading-none">
+                    {customer.first_name ?? "Account"}
+                  </p>
+                </div>
+              </LocalizedClientLink>
+            ) : (
+              <LocalizedClientLink
+                href="/account"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 transition-all shadow-sm hover:shadow-md"
+                data-testid="nav-account-link"
+              >
+                <User size={16} />
+                <span>Login</span>
+              </LocalizedClientLink>
+            )}
           </div>
 
-          {/* Header search - navigates to /cars with query */}
-          <div className="hidden md:flex flex-1 min-w-0 max-w-xl mx-2 lg:mx-4">
-            <Suspense fallback={<div className="w-full h-10 rounded-xl bg-slate-100 animate-pulse" />}>
-              <HeaderSearchBar />
+          {/* Mobile Menu */}
+          <div className="md:hidden">
+            <Suspense>
+              <NavClient customer={customer} />
             </Suspense>
           </div>
-
-          {/* Right side - Dynamic Account Interaction */}
-          <div className="flex items-center gap-4">
-            {customer ? (
-              <div className="hidden md:flex">
-                <LocalizedClientLink
-                  href="/account"
-                  className="group flex items-center gap-3 pl-1 pr-4 py-1 rounded-full border border-gray-100 hover:border-blue-100 hover:bg-blue-50/50 transition-all duration-300"
-                  data-testid="nav-account-link"
-                >
-                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center shadow-md group-hover:rotate-12 transition-transform">
-                    <span className="text-white font-bold text-xs uppercase">
-                      {customer.first_name?.charAt(0) ?? customer.email?.charAt(0) ?? "U"}
-                    </span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-[10px] uppercase tracking-wider text-gray-400 font-bold leading-none">Account</span>
-                    <span className="text-sm font-semibold text-gray-700 group-hover:text-blue-600 transition-colors">
-                      {customer.first_name ?? "User"}
-                    </span>
-                  </div>
-                </LocalizedClientLink>
-              </div>
-            ) : (
-              <div className="hidden md:flex">
-                <LocalizedClientLink
-                  href="/account"
-                  className="relative overflow-hidden group px-6 py-2 text-sm font-semibold text-blue-600 transition-all duration-300"
-                  data-testid="nav-account-link"
-                >
-                  <span className="relative z-10">Login</span>
-                  <div className="absolute inset-0 bg-blue-50 translate-y-[100%] group-hover:translate-y-0 transition-transform duration-300 rounded-lg" />
-                </LocalizedClientLink>
-              </div>
-            )}
-
-            {/* Mobile hamburger wrapper */}
-            <div className="md:border-l border-gray-200 md:pl-4">
-              <Suspense fallback={<div className="w-10 h-10 rounded-full bg-gray-100 animate-pulse" />}>
-                <NavClient customer={customer} />
-              </Suspense>
-            </div>
-          </div>
-        </nav>
-      </header>
-    </div>
+        </div>
+      </div>
+    </header>
   )
 }

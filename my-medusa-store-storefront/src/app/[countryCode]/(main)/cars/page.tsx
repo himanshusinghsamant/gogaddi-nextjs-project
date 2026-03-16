@@ -5,11 +5,13 @@ import { Metadata } from "next"
 import { Suspense } from "react"
 import CarCard from "@modules/cars/components/car-card"
 import CarFilters from "@modules/cars/components/car-filters"
+import MobileFilterBar from "@modules/cars/components/mobile-filter-bar"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
+import { ChevronRight, X } from "lucide-react"
 
 export const metadata: Metadata = {
-  title: "All Cars | GoGaddi",
-  description: "Browse and filter thousands of cars. Find the best deal.",
+  title: "Premium Cars Inventory | GoGaddi",
+  description: "Browse our exclusive collection of verified pre-owned luxury vehicles.",
 }
 
 const PAGE_SIZE = 12
@@ -197,9 +199,9 @@ export default async function CarsListingPage(props: {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-slate-50/50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="content-container py-12">
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-8 text-amber-800 max-w-md mx-auto text-center">
+          <div className="rounded-2xl border border-red-100 bg-red-50 p-8 text-red-800 max-w-md mx-auto text-center">
             <p className="font-bold text-lg">Unable to load cars</p>
             <p className="text-sm mt-2">{error}</p>
           </div>
@@ -243,46 +245,78 @@ export default async function CarsListingPage(props: {
   const filterEntries = Object.entries(activeFilters).filter(([, v]) => v)
 
   return (
-    <div className="min-h-screen bg-slate-50/50">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <section className="bg-white border-b border-slate-200">
-        <div className="content-container py-8 md:py-10">
-          <nav className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-3">
+      <section className="bg-white border-b border-gray-100">
+        <div className="content-container py-12">
+          <nav className="flex items-center gap-2 text-xs font-medium text-gray-500 mb-4 uppercase tracking-wider">
             <LocalizedClientLink href="/" className="hover:text-blue-600 transition-colors">
               Home
             </LocalizedClientLink>
-            <span className="mx-2">/</span>
-            <span className="text-slate-900">Cars</span>
+            <ChevronRight size={14} />
+            <span className="text-gray-900 font-bold">Inventory</span>
           </nav>
-          <h1 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tighter">
-            {sp.brand ? `${sp.brand} Cars` : "All Cars"}
-          </h1>
-          <p className="text-slate-500 font-medium mt-1">
-            {filtered.length} {filtered.length === 1 ? "car" : "cars"} found
-            {sp.brand && ` for "${sp.brand}"`}
-            {sp.city && ` in ${sp.city}`}
-          </p>
+          
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+            <div>
+              <h1 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tight mb-2">
+                {sp.brand ? `${sp.brand} Inventory` : "Premium Collection"}
+              </h1>
+              <p className="text-gray-500 text-lg">
+                Showing {filtered.length} verified {filtered.length === 1 ? "vehicle" : "vehicles"}
+                {sp.city && ` in ${sp.city}`}
+              </p>
+            </div>
+            
+            {hasFilters && (
+              <LocalizedClientLink
+                href="/cars"
+                className="text-sm font-semibold text-red-500 hover:text-red-600 flex items-center gap-1"
+              >
+                <X size={16} /> Clear all filters
+              </LocalizedClientLink>
+            )}
+          </div>
         </div>
       </section>
 
-      <div className="content-container py-8 lg:py-10">
-        <div className="flex flex-col lg:flex-row gap-8 lg:gap-10">
-          {/* Side filter bar: category, price, and all filters */}
-          <Suspense fallback={<div className="lg:w-72 shrink-0 h-64 bg-slate-100 rounded-2xl animate-pulse" />}>
-            <CarFilters
-              options={filterOptions}
-              active={activeFilters}
-              categoryOptions={categoryOptions}
-              maxPriceOptions={maxPriceOptionsForSidebar}
-            />
+      <div className="content-container py-12">
+        <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
+          {/* Side filter bar (desktop) */}
+          <Suspense fallback={<div className="hidden lg:block lg:w-72 shrink-0 h-96 bg-gray-100 rounded-2xl animate-pulse" />}>
+            <div className="hidden lg:block lg:w-72 shrink-0">
+              <CarFilters
+                options={filterOptions}
+                active={activeFilters}
+                categoryOptions={categoryOptions}
+                maxPriceOptions={maxPriceOptionsForSidebar}
+              />
+            </div>
           </Suspense>
 
-          {/* Main */}
+          {/* Main Grid */}
           <div className="flex-1 min-w-0">
+            {/* Mobile quick filter bar */}
+            <MobileFilterBar
+              options={filterOptions}
+              categoryOptions={categoryOptions}
+              active={{
+                carType: activeFilters.carType,
+                maxPrice: activeFilters.maxPrice,
+                brand: activeFilters.brand,
+                fuelType: activeFilters.fuelType,
+                city: activeFilters.city,
+                sortBy: activeFilters.sortBy,
+                transmission: activeFilters.transmission,
+                year: activeFilters.year,
+                owner: activeFilters.owner,
+                model: activeFilters.model,
+              }}
+              maxPriceOptions={maxPriceOptionsForSidebar}
+            />
             {/* Active filter chips */}
             {hasFilters && filterEntries.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2 mb-6">
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Active:</span>
+              <div className="flex flex-wrap items-center gap-2 mb-8">
                 {filterEntries.map(([key, val]) => {
                   let displayVal = val
                   if (key === "category") displayVal = categoryOptions.find((o) => o.value === val)?.label ?? val
@@ -290,40 +324,34 @@ export default async function CarsListingPage(props: {
                   return (
                     <span
                       key={key}
-                      className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-800 text-xs font-semibold px-3 py-1.5 rounded-xl border border-blue-100"
+                      className="inline-flex items-center gap-1.5 bg-white text-gray-700 text-xs font-bold px-3 py-1.5 rounded-full border border-gray-200 shadow-sm"
                     >
-                      {FILTER_LABELS[key] ?? key}: {displayVal}
+                      <span className="text-gray-400 font-medium">{FILTER_LABELS[key] ?? key}:</span> {displayVal}
                     </span>
                   )
                 })}
-                <LocalizedClientLink
-                  href="/cars"
-                  className="text-xs font-bold text-slate-500 hover:text-blue-600 transition-colors ml-1"
-                >
-                  Clear all
-                </LocalizedClientLink>
               </div>
             )}
 
             {paginated.length === 0 ? (
-              <div className="text-center py-20 px-4">
-                <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-6 text-4xl">
-                  🚗
+              <div className="text-center py-32 px-4 bg-white rounded-3xl border border-gray-100 shadow-sm">
+                <div className="w-24 h-24 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-6 text-5xl">
+                  🔍
                 </div>
-                <h3 className="text-xl font-black text-slate-900 mb-2">No cars found</h3>
-                <p className="text-slate-500 font-medium mb-8 max-w-sm mx-auto">
-                  Try adjusting your filters or clear them to see more listings.
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">No vehicles found</h3>
+                <p className="text-gray-500 mb-8 max-w-md mx-auto">
+                  We couldn't find any cars matching your criteria. Try adjusting your filters or search for something else.
                 </p>
                 <LocalizedClientLink
                   href="/cars"
-                  className="inline-flex items-center bg-blue-600 hover:bg-blue-500 text-white font-bold px-8 py-3.5 rounded-2xl transition-colors"
+                  className="inline-flex items-center bg-gray-900 hover:bg-black text-white font-bold px-8 py-4 rounded-xl transition-all hover:shadow-lg"
                 >
-                  Clear filters
+                  View All Cars
                 </LocalizedClientLink>
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 md:gap-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 lg:gap-8">
                   {paginated.map((car) => (
                     <CarCard key={car.id} car={car} />
                   ))}
@@ -331,7 +359,7 @@ export default async function CarsListingPage(props: {
 
                 {/* Pagination */}
                 {totalPages > 1 && (
-                  <nav className="flex justify-center gap-2 mt-12" aria-label="Pagination">
+                  <nav className="flex justify-center gap-2 mt-16" aria-label="Pagination">
                     {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => {
                       const params = new URLSearchParams()
                       Object.entries(activeFilters).forEach(([k, v]) => v && params.set(k, v))
@@ -342,10 +370,10 @@ export default async function CarsListingPage(props: {
                           key={p}
                           href={`/cars?${params.toString()}`}
                           className={`
-                            min-w-[44px] h-11 flex items-center justify-center rounded-xl text-sm font-bold border transition-all
+                            w-12 h-12 flex items-center justify-center rounded-xl text-sm font-bold transition-all
                             ${isCurrent
-                              ? "bg-blue-600 text-white border-blue-600"
-                              : "bg-white text-slate-700 border-slate-200 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50/50"}
+                              ? "bg-gray-900 text-white shadow-lg scale-110"
+                              : "bg-white text-gray-500 border border-gray-200 hover:border-blue-500 hover:text-blue-600"}
                           `}
                           aria-current={isCurrent ? "page" : undefined}
                         >
