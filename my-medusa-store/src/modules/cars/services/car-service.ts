@@ -5,6 +5,7 @@ import CarReview from "../models/car-review"
 import CarRelated from "../models/car-related"
 import SellerCar from "../models/seller-car"
 import CarBooking from "../models/car-booking"
+import { analyzeReviewText } from "../../../lib/reviews/moderation"
 
 class CarsModuleService extends MedusaService({
   CarFeature,
@@ -28,13 +29,24 @@ class CarsModuleService extends MedusaService({
 
   async addReview(
     productId: string,
-    review: { reviewer_name?: string; rating: number; review_text?: string }
+    review: { reviewer_name?: string; rating: number; review_text?: string },
+    options?: { bypassModeration?: boolean; forceStatus?: "published" | "pending" }
   ) {
+    const reviewText = review.review_text ?? ""
+    const moderation = options?.bypassModeration
+      ? { isFlagged: false, matchedWords: [] as string[] }
+      : analyzeReviewText(reviewText)
+    const status =
+      options?.forceStatus ?? (moderation.isFlagged ? "pending" : "published")
+
     return this.createCarReviews({
       product_id: productId,
       reviewer_name: review.reviewer_name ?? "",
       rating: review.rating,
-      review_text: review.review_text ?? "",
+      review_text: reviewText,
+      status,
+      is_flagged: moderation.isFlagged,
+      flagged_words: moderation.matchedWords.join(","),
     } as any)
   }
 
@@ -55,7 +67,19 @@ class CarsModuleService extends MedusaService({
   }
 
   async getCarReviews(productId: string) {
-    return this.listCarReviews({ product_id: productId })
+    return this.listCarReviews({ product_id: productId, status: "published" } as any)
+  }
+
+  async getCarReviewsForAdmin(productId: string) {
+    return this.listCarReviews({ product_id: productId } as any)
+  }
+
+  async listAllCarReviews(filters?: {
+    status?: string
+    is_flagged?: boolean
+    product_id?: string
+  }) {
+    return this.listCarReviews(filters ?? ({} as any))
   }
 
   async getRelatedCars(productId: string) {

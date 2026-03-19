@@ -13,6 +13,9 @@ Reviews are stored in the **cars** module (`car_review` table) and linked to a p
 | `reviewer_name`| string | Display name             |
 | `rating`       | number | 1–5                      |
 | `review_text`  | text   | Optional                 |
+| `status`       | string | `published` or `pending` |
+| `is_flagged`   | bool   | Auto true on bad words   |
+| `flagged_words`| text   | Matched moderation words |
 | `created_at`   | timestamp | Set by framework      |
 
 ---
@@ -24,7 +27,9 @@ Use these from your storefront or any public client.
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET    | `/store/cars/:id/reviews` | List reviews for a car (product id). Response: `{ reviews: [{ id, reviewer_name, rating, review_text, created_at }, ...] }`. |
-| POST   | `/store/cars/:id/reviews` | Submit a review. Body: `{ reviewer_name?, rating, review_text? }`. Rating is clamped 1–5. Returns created review. |
+| POST   | `/store/cars/:id/reviews` | Submit a review. Body: `{ reviewer_name?, rating, review_text? }`. Rating is clamped 1–5. If review text contains blocked words, review is saved as `pending` and hidden from storefront. |
+
+When a customer submits a review, admin notification email is sent automatically if `RESEND_API_KEY` and either `CHECKOUT_EMAIL_TO` or `ADMIN_EMAIL` are configured.
 
 **Example – fetch reviews (storefront):**
 ```ts
@@ -49,7 +54,6 @@ await fetch(`${API_URL}/store/cars/${productId}/reviews`, {
 For production, consider:
 - Requiring customer auth and saving `customer_id` (e.g. in metadata or an extra column).
 - Rate limiting (e.g. one review per customer per product).
-- Moderation (e.g. `status: "pending"` and approve in admin).
 
 ---
 
@@ -61,12 +65,16 @@ For production, consider:
 | POST   | `/admin/cars/:id/reviews` | Add a review. Body: `{ reviewer_name?, rating, review_text? }`. |
 | PUT    | `/admin/cars/:id/reviews/:reviewId` | Update a review. Body: `{ reviewer_name?, rating, review_text? }`. |
 | DELETE | `/admin/cars/:id/reviews/:reviewId` | Delete a review. |
+| GET    | `/admin/car-reviews?flagged=true|false` | Central review list for moderation page. |
+| DELETE | `/admin/car-reviews/:id` | Delete a customer review from central moderation page. |
 
 Use when building custom admin UIs or automating review creation.
 
 ---
 
-## Admin UI (widget)
+## Admin UI
+
+### Product Widget (Car Reviews)
 
 The **Car Reviews** widget is registered on the product details page (`product.details.after`). It:
 
@@ -76,6 +84,15 @@ The **Car Reviews** widget is registered on the product details page (`product.d
 - **Delete**: click "Delete" on a row; confirm to remove the review.
 
 So you can manage car reviews (add, edit, delete) directly from **Products** without going to a separate Cars admin page.
+
+### Extension Page (Customer Reviews)
+
+There is also a dedicated admin extension page named **Customer Reviews**. It:
+
+- Lists all customer reviews globally (not per product only).
+- Supports filtering by flagged/non-flagged.
+- Shows review status and flagged words.
+- Lets admin delete inappropriate reviews quickly.
 
 ---
 
