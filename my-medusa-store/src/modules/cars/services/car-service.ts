@@ -39,7 +39,11 @@ class CarsModuleService extends MedusaService({
   }
 
   async addRelatedCar(productId: string, relatedProductId: string) {
-    return this.createCarRelated({ product_id: productId, related_product_id: relatedProductId } as any)
+    // Medusa generates pluralized helpers for the CarRelated model (createCarRelateds)
+    return (this as any).createCarRelateds({
+      product_id: productId,
+      related_product_id: relatedProductId,
+    } as any)
   }
 
   async getCarFeatures(productId: string) {
@@ -55,7 +59,8 @@ class CarsModuleService extends MedusaService({
   }
 
   async getRelatedCars(productId: string) {
-    return this.listCarRelated({ product_id: productId })
+    // And listCarRelateds for listing
+    return (this as any).listCarRelateds({ product_id: productId })
   }
 
   // ── Seller Car Submissions ────────────────────────────────────────────

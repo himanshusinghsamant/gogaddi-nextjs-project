@@ -3,9 +3,8 @@ import Image from "next/image"
 import { retrieveCustomer } from "@lib/data/customer"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import NavClient from "@modules/layout/templates/nav/nav-client"
-import NavLinks from "@modules/layout/templates/nav/nav-links"
 import HeaderSearchBar from "@modules/layout/components/header-search-bar"
-import { User } from "lucide-react"
+import { User, Car } from "lucide-react"
 
 export default async function Nav() {
   const customer = await retrieveCustomer().catch(() => null)
@@ -31,25 +30,28 @@ export default async function Nav() {
           </LocalizedClientLink>
         </div>
 
-        {/* Desktop Navigation */}
-        <div className="hidden md:flex items-center gap-1">
-          <NavLinks
-            links={[
-              { href: "/", label: "Home", exact: true },
-              { href: "/cars", label: "Browse Cars" },
-            ]}
-          />
-        </div>
-
         {/* Search Bar (Desktop) */}
-        <div className="hidden md:block flex-1 max-w-md">
-          <Suspense fallback={<div className="w-full h-10 rounded-xl bg-slate-100 animate-pulse" />}>
-            <HeaderSearchBar />
-          </Suspense>
+        <div className="hidden md:flex flex-1 justify-center">
+          <div className="w-full max-w-md">
+            <Suspense fallback={<div className="w-full h-10 rounded-xl bg-slate-100 animate-pulse" />}>
+              <HeaderSearchBar />
+            </Suspense>
+          </div>
         </div>
 
         {/* Right Actions */}
         <div className="flex items-center gap-3 md:gap-4">
+          {/* Browse Cars (Desktop) */}
+          <div className="hidden md:block">
+            <LocalizedClientLink
+              href="/cars"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-slate-900 via-slate-900 to-blue-700 text-white text-sm font-bold shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 hover:from-slate-800 hover:to-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+            >
+              <Car size={16} />
+              Car
+            </LocalizedClientLink>
+          </div>
+
           {/* Account Link (Desktop) */}
           <div className="hidden md:block">
             {customer ? (

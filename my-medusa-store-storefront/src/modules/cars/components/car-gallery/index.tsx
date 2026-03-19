@@ -12,7 +12,7 @@ export default function CarGallery({ images, name }: { images: string[]; name: s
   return (
     <div className="space-y-3">
       {/* Main image */}
-      <div className="relative aspect-[4/3] rounded-xl overflow-hidden bg-gray-100 shadow-md">
+      <div className="relative aspect-[7/4] rounded-xl overflow-hidden bg-gray-100 shadow-md">
         <Image
           src={allImages[active]}
           alt={`${name} - image ${active + 1}`}

@@ -22,7 +22,7 @@ export default function CarCard({ car, featured = false }: { car: CarListItem; f
       className="group relative bg-white rounded-2xl overflow-hidden border border-gray-100 hover:border-blue-100 shadow-sm hover:shadow-xl transition-all duration-300"
     >
       {/* Image Section */}
-      <div className="relative aspect-[16/10] overflow-hidden bg-gray-100">
+      <div className="relative aspect-[16/8] overflow-hidden bg-gray-100">
         <LocalizedClientLink href={`/cars/${car.handle ?? car.id}`} className="block w-full h-full">
           <Image
             src={displayImage}
@@ -66,6 +66,11 @@ export default function CarCard({ car, featured = false }: { car: CarListItem; f
              <MapPin size={12} />
              <span className="truncate">{car.city || "Available Online"}</span>
           </div>
+            {car.engine && (
+              <p className="text-[12px] text-gray-500 mt-1 line-clamp-1">
+                {car.engine}
+              </p>
+            )}
         </div>
 
         {/* Specs Grid */}
@@ -88,7 +93,7 @@ export default function CarCard({ car, featured = false }: { car: CarListItem; f
             <span className="text-[10px] text-gray-400 uppercase tracking-wider">Mileage</span>
             <div className="flex items-center gap-1 text-xs font-medium text-gray-700">
               <Gauge size={12} className="text-blue-500" />
-              <span className="truncate">{car.mileage ? `${car.mileage} km` : "N/A"}</span>
+              <span className="truncate">{car.mileage ?? "N/A"}</span>
             </div>
           </div>
         </div>

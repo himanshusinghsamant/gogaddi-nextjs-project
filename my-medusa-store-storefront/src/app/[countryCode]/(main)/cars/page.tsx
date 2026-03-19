@@ -49,6 +49,26 @@ function filterAndSort(
     sortBy?: string
   }
 ): CarListItem[] {
+  const normalize = (s: string | null | undefined): string => String(s ?? "").trim().toLowerCase()
+
+  const carSupportsFuelType = (car: CarListItem, fuelType: string): boolean => {
+    const entry = car.variant_filters?.variants?.find((v) => v.variant === car.handle) ?? null
+    const allowed = entry?.fuelType ?? []
+    if (allowed.length > 0) {
+      return allowed.some((ft) => normalize(ft) === normalize(fuelType))
+    }
+    return normalize(car.fuel_type) === normalize(fuelType)
+  }
+
+  const carSupportsTransmission = (car: CarListItem, transmission: string): boolean => {
+    const entry = car.variant_filters?.variants?.find((v) => v.variant === car.handle) ?? null
+    const allowed = entry?.transmission ?? []
+    if (allowed.length > 0) {
+      return allowed.some((tr) => normalize(tr) === normalize(transmission))
+    }
+    return normalize(car.transmission) === normalize(transmission)
+  }
+
   let result = [...cars]
   if (params.carType) {
     const type = params.carType.trim().toLowerCase()
@@ -73,8 +93,14 @@ function filterAndSort(
     })
   }
   if (params.brand) result = result.filter((c) => c.brand === params.brand)
-  if (params.fuelType) result = result.filter((c) => c.fuel_type === params.fuelType)
-  if (params.transmission) result = result.filter((c) => c.transmission === params.transmission)
+  if (params.fuelType) {
+    const fuelType = params.fuelType
+    result = result.filter((c) => carSupportsFuelType(c, fuelType))
+  }
+  if (params.transmission) {
+    const transmission = params.transmission
+    result = result.filter((c) => carSupportsTransmission(c, transmission))
+  }
   if (params.city) result = result.filter((c) => c.city === params.city)
   if (params.year) result = result.filter((c) => c.year === params.year)
   if (params.owner) result = result.filter((c) => c.owner === params.owner)
@@ -177,9 +203,6 @@ export default async function CarsListingPage(props: {
     getCarFilterOptions(cars),
     getRootCategoriesForSitemap(),
   ])
-
-
-  console.log("cars ------> ", cars)
 
   // value = slug for URL/filter; label = display only e.g. { value: "maruti-suzuki-alto-800", label: "--Maruti Suzuki Alto 800--" }
   const categoryOptions = (() => {

@@ -3,11 +3,11 @@ import CarGallery from "@modules/cars/components/car-gallery"
 import CarReviewForm from "@modules/cars/components/car-review-form"
 import CarCard from "@modules/cars/components/car-card"
 import SellerCard from "@modules/cars/components/seller-card"
-import CarVariantsTable from "@modules/cars/components/car-variants-table"
 import { submitCarReview } from "@lib/data/cars"
 import { formatCarPrice, getVersionPrice } from "@lib/util/format-car-price"
-import type { CarDetail, RelatedCar } from "@lib/data/cars"
-import { ChevronRight, Home, MapPin, Phone, MessageCircle, ShieldCheck, Calendar, Gauge, Fuel, User } from "lucide-react"
+import { filter_variants } from "@lib/util/car-variant-filters"
+import type { CarDetail, CarListItem } from "@lib/data/cars"
+import { ChevronRight, Home, MapPin, Phone, MessageCircle, ShieldCheck, Calendar, Gauge, Fuel } from "lucide-react"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -63,38 +63,19 @@ function StarRating({ rating }: { rating: number }) {
   )
 }
 
-function RelatedCarCard({ related }: { related: RelatedCar }) {
-  const carListItem = {
-    id: related.id,
-    handle: related.handle,
-    thumbnail: related.thumbnail,
-    images: [],
-    name: related.title,
-    subtitle: null,
-    brand: null,
-    model: null,
-    category_handles: [],
-    fuel_type: null,
-    transmission: null,
-    year: null,
-    km_driven: null,
-    color: null,
-    engine: null,
-    mileage: null,
-    owner: null,
-    city: null,
-    car_type: null,
-    customer_id: null,
-    availability: true,
-    price: null,
-    description: null,
-    features: [],
-    specifications: [],
-    reviews: [],
-    versions: [],
-    related_cars: [],
-  }
-  return <CarCard car={carListItem} />
+function formatMetadataValue(value: unknown): string {
+  if (value == null) return "—"
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return String(value)
+  if (Array.isArray(value))
+    return value
+      .map((v) => {
+        if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") return String(v)
+        if (v == null) return "—"
+        return typeof v === "object" ? JSON.stringify(v) : String(v)
+      })
+      .join(", ")
+  if (typeof value === "object") return JSON.stringify(value)
+  return String(value)
 }
 
 // ─── Main Template ────────────────────────────────────────────────────────────
@@ -104,22 +85,25 @@ type CarDetailTemplateProps = {
   variantIdFromUrl?: string
   /** When null, test drive booking is hidden and "Login to book" is shown. */
   customer?: { id: string } | null
+  relatedCars?: CarListItem[]
 }
 
-export default function CarDetailTemplate({ car, variantIdFromUrl, customer }: CarDetailTemplateProps) {
+export default function CarDetailTemplate({ car, variantIdFromUrl, customer, relatedCars }: CarDetailTemplateProps) {
   const versions = car.versions ?? []
+  const filteredVersions = filter_variants(versions, car.variant_filters ?? null, car.handle)
+  const variantList = car.variant_filters?.variants ?? []
+
   const selectedVariant =
-    variantIdFromUrl && versions.length > 0
-      ? versions.find((v) => v.id === variantIdFromUrl) ?? versions[0]
-      : versions[0] ?? null
+    variantIdFromUrl && filteredVersions.length > 0
+      ? filteredVersions.find((v) => v.id === variantIdFromUrl) ?? filteredVersions[0]
+      : filteredVersions[0] ?? null
+
   const displayPrice = selectedVariant ? getVersionPrice(selectedVariant.prices) : null
   const displayPriceFormatted = displayPrice != null ? formatCarPrice(displayPrice) : formatCarPrice(car.price)
-  const selectedAvailability =
-    selectedVariant == null
-      ? car.availability
-      : selectedVariant.manage_inventory
-        ? (selectedVariant.inventory_quantity ?? 0) > 0
-        : true
+
+  // Booking CTA must follow the top-level metadata boolean (metadata.available).
+  // Variant-level inventory should not override this button visibility.
+  const selectedAvailability = Boolean(car.availability)
   const avgRating =
     (car.reviews?.length ?? 0) > 0
       ? car.reviews.reduce((a, r) => a + r.rating, 0) / car.reviews.length
@@ -129,11 +113,11 @@ export default function CarDetailTemplate({ car, variantIdFromUrl, customer }: C
 
   const quickSpecs = [
     car.fuel_type && { label: "Fuel Type", value: car.fuel_type, icon: Fuel },
+    car.engine && { label: "Engine", value: car.engine, icon: Fuel },
+    car.mileage && { label: "Mileage", value: car.mileage, icon: Gauge },
     car.transmission && { label: "Transmission", value: car.transmission, icon: Gauge },
     car.year && { label: "Year", value: car.year, icon: Calendar },
     car.km_driven && { label: "KM Driven", value: car.km_driven, icon: Gauge },
-    car.owner && { label: "Owner", value: car.owner, icon: User },
-    car.color && { label: "Color", value: car.color, icon: ShieldCheck },
   ].filter(Boolean) as Array<{ label: string; value: string; icon: any }>
 
   return (
@@ -184,6 +168,54 @@ export default function CarDetailTemplate({ car, variantIdFromUrl, customer }: C
               </div>
             )}
 
+            {/* Trims (trim list from metadata.variant_filters) */}
+            {variantList.length > 0 && (
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 mb-6">Trims</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {variantList.map((v) => {
+                    const isCurrent = v.variant === car.handle
+                    const fuel = v.fuelType?.length ? v.fuelType.join(" / ") : ""
+                    const transmission = v.transmission?.length ? v.transmission.join(" / ") : ""
+                    return (
+                      <LocalizedClientLink
+                        key={v.variant}
+                        href={`/cars/${v.variant}`}
+                        className={`rounded-3xl border p-5 shadow-sm transition-all ${
+                          isCurrent
+                            ? "bg-blue-50 border-blue-200"
+                            : "bg-white border-gray-200 hover:border-blue-200 hover:bg-blue-50/30"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <p className="text-sm font-bold text-gray-900">
+                              {v.variant
+                                .split("-")
+                                .map((p) => (p ? p[0].toUpperCase() + p.slice(1) : ""))
+                                .join(" ")}
+                            </p>
+                            {(fuel || transmission) && (
+                              <p className="text-xs text-gray-500 mt-2">
+                                {fuel ? `Fuel: ${fuel}` : ""}
+                                {fuel && transmission ? " • " : ""}
+                                {transmission ? `Transmission: ${transmission}` : ""}
+                              </p>
+                            )}
+                          </div>
+                          {isCurrent && (
+                            <span className="text-[10px] font-bold uppercase tracking-wider bg-blue-600 text-white px-3 py-1 rounded-full">
+                              Selected
+                            </span>
+                          )}
+                        </div>
+                      </LocalizedClientLink>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Description */}
             {car.description && (
               <div className="bg-gray-50 rounded-3xl p-8 border border-gray-100">
@@ -202,14 +234,26 @@ export default function CarDetailTemplate({ car, variantIdFromUrl, customer }: C
               </div>
             )}
 
-            {/* Variants */}
-            {versions.length > 0 && (
-              <CarVariantsTable
-                versions={versions}
-                selectedVariantId={selectedVariant?.id ?? null}
-                carHandle={car.handle}
-              />
+            {/* Vehicle Metadata (non-features/specifications fields) */}
+            {car.metadata && typeof car.metadata === "object" && (
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 mb-6">Vehicle Details</h3>
+                <div className="bg-white rounded-3xl border border-gray-200 p-8 shadow-sm">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                    {Object.entries(car.metadata as Record<string, unknown>)
+                      .filter(([k]) => !["features", "specifications", "variant_filters"].includes(k))
+                      .map(([k, v]) => (
+                        <div key={k} className="flex justify-between items-center py-3 border-b border-gray-50 last:border-0">
+                          <span className="text-sm text-gray-500 font-medium">{k}</span>
+                          <span className="text-sm font-bold text-gray-900 text-right">{formatMetadataValue(v)}</span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              </div>
             )}
+
+           
 
             {/* Features */}
             {car.features && car.features.length > 0 && (
@@ -377,20 +421,20 @@ export default function CarDetailTemplate({ car, variantIdFromUrl, customer }: C
         </div>
 
         {/* Related Cars */}
-        {car.related_cars && car.related_cars.length > 0 && (
+        {relatedCars && relatedCars.length > 0 && (
           <section className="mt-24 border-t border-gray-100 pt-16">
             <div className="flex items-end justify-between mb-10">
               <div>
-                <h2 className="text-3xl font-bold text-gray-900 mb-2">You Might Also Like</h2>
-                <p className="text-gray-500">Similar vehicles based on your interest</p>
+                <h2 className="text-3xl font-bold text-gray-900 mb-2">Related Vehicles</h2>
+                <p className="text-gray-500">Explore other trims for this model</p>
               </div>
               <LocalizedClientLink href="/cars" className="text-blue-600 font-bold hover:underline">
                 View all inventory
               </LocalizedClientLink>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {car.related_cars.slice(0, 4).map((related) => (
-                <RelatedCarCard key={related.id} related={related} />
+              {relatedCars.map((related) => (
+                <CarCard key={related.id} car={related} />
               ))}
             </div>
           </section>

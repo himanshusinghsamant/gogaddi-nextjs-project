@@ -1,7 +1,7 @@
 import { Metadata } from "next"
 import { notFound } from "next/navigation"
 import CarDetailTemplate from "@modules/cars/templates/car-detail-template"
-import { getCarByHandle } from "@lib/data/cars"
+import { getCarByHandle, getCarsByHandles } from "@lib/data/cars"
 import { retrieveCustomer } from "@lib/data/customer"
 
 type Props = {
@@ -34,11 +34,17 @@ export default async function CarDetailPage({ params, searchParams }: Props) {
 
   const customer = await retrieveCustomer().catch(() => null)
 
+  const relatedHandles =
+    car.variant_filters?.variants?.map((v) => v.variant).filter((h) => h) ?? []
+
+  const relatedCars = relatedHandles.length > 0 ? (await getCarsByHandles(countryCode, relatedHandles)).cars : []
+
   return (
     <CarDetailTemplate
       car={car}
       variantIdFromUrl={variantId}
       customer={customer}
+      relatedCars={relatedCars}
     />
   )
 }

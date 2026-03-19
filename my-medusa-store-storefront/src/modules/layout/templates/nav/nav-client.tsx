@@ -38,8 +38,7 @@ export default function NavClient({ customer }: { customer: HttpTypes.StoreCusto
   }
 
   const links = [
-    { href: `/${countryCode}`, label: "Home" },
-    { href: `/${countryCode}/cars`, label: "Browse Cars" },
+    { href: `/${countryCode}/cars`, label: "Car" },
     ...(customer
       ? [
           { href: `/${countryCode}/account`, label: "My Account" },
