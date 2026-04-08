@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
 import Image from "next/image"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
@@ -13,12 +14,73 @@ const CAR_IMAGES_FROM_PUBLIC = [
   "/cars/olav-tvedt-6lSBynPRaAQ-unsplash.jpg",
 ]
 
+type UiNewsItem = {
+  id: string
+  slug: string
+  title: string
+  excerpt: string
+  date: string
+  image?: string | null
+}
+
+function formatDate(value: string): string {
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return value || "—"
+  return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+}
+
+function mapStrapiNewsToUiItems(raw: any): UiNewsItem[] {
+  const list = Array.isArray(raw?.data) ? raw.data : []
+  return list
+    .map((item: any) => {
+      const attrs = item?.attributes ?? item
+      const id = item?.id ?? item?.documentId
+      const title = attrs?.title
+      const slug = attrs?.slug
+      if (!id || !title || !slug) return null
+      const media = attrs?.coverImage
+      const url = media?.data?.attributes?.url ?? media?.url ?? null
+      const base = process.env.NEXT_PUBLIC_STRAPI_URL || ""
+      const image =
+        typeof url === "string"
+          ? /^https?:\/\//i.test(url)
+            ? url
+            : `${base.replace(/\/$/, "")}${url.startsWith("/") ? "" : "/"}${url}`
+          : null
+      return {
+        id: String(id),
+        slug: String(slug),
+        title: String(title),
+        excerpt: String(attrs?.excerpt ?? ""),
+        date: formatDate(String(attrs?.publishedAt ?? "")),
+        image,
+      } satisfies UiNewsItem
+    })
+    .filter(Boolean) as UiNewsItem[]
+}
+
 export default function LatestCarUpdates() {
-  const items = NEWS_AND_EVENTS.slice(0, 3)
+  const [items, setItems] = useState<UiNewsItem[]>(() => NEWS_AND_EVENTS.slice(0, 3))
   const main = items[0]
   const rest = items.slice(1)
-  const mainImage = CAR_IMAGES_FROM_PUBLIC[0] ?? PLACEHOLDER_IMAGE_URL
-  const restImages = [CAR_IMAGES_FROM_PUBLIC[1], CAR_IMAGES_FROM_PUBLIC[2]]
+  const mainImage = main?.image || CAR_IMAGES_FROM_PUBLIC[0] || PLACEHOLDER_IMAGE_URL
+  const restImages = [
+    rest[0]?.image || CAR_IMAGES_FROM_PUBLIC[1] || PLACEHOLDER_IMAGE_URL,
+    rest[1]?.image || CAR_IMAGES_FROM_PUBLIC[2] || PLACEHOLDER_IMAGE_URL,
+  ]
+
+  useEffect(() => {
+    const base = process.env.NEXT_PUBLIC_STRAPI_URL
+    if (!base) return
+    fetch(`${base.replace(/\/$/, "")}/api/news-items?populate=*&sort[0]=publishedAt:desc&pagination[limit]=3`)
+      .then(async (res) => {
+        if (!res.ok) return
+        const body = await res.json().catch(() => null)
+        const mapped = mapStrapiNewsToUiItems(body)
+        if (mapped.length) setItems(mapped)
+      })
+      .catch(() => {})
+  }, [])
 
   if (!main) return null
 
@@ -79,7 +141,7 @@ export default function LatestCarUpdates() {
                   {main.excerpt}
                 </p>
                 <LocalizedClientLink
-                  href="/news-events"
+                  href={`/news-events/${main.slug}`}
                   className="inline-flex items-center gap-2 text-white font-black text-xs uppercase tracking-[0.2em] group/btn"
                 >
                   Read Article 
@@ -115,7 +177,7 @@ export default function LatestCarUpdates() {
                     {n.title}
                   </h4>
                   <LocalizedClientLink
-                    href="/news-events"
+                    href={`/news-events/${n.slug}`}
                     className="text-[10px] font-black uppercase tracking-widest text-slate-400 group-hover:text-slate-900 flex items-center gap-2 transition-colors"
                   >
                     Quick Read <ArrowRight size={12} />

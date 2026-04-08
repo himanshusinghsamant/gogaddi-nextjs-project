@@ -1,9 +1,10 @@
 "use client"
 
 import React from "react"
+import { useEffect, useState } from "react"
 import Image from "next/image"
 import { motion } from "framer-motion"
-import { Calendar, ChevronRight, Filter, Grid, List, Mail, Search, TrendingUp } from "lucide-react"
+import { Calendar, ChevronRight, Search, TrendingUp } from "lucide-react"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import { NEWS_AND_EVENTS } from "data/news-events"
 import { PLACEHOLDER_IMAGE_URL } from "@lib/constants/placeholder-image"
@@ -25,12 +26,82 @@ function getCarImageForIndex(index: number): string {
   return CAR_IMAGES_FROM_PUBLIC[index % CAR_IMAGES_FROM_PUBLIC.length] ?? PLACEHOLDER_IMAGE_URL
 }
 
+type UiNewsItem = {
+  id: string
+  slug: string
+  title: string
+  excerpt: string
+  date: string
+  image?: string | null
+}
+
+function formatDate(value: string): string {
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return value || "—"
+  return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+}
+
+function mapStrapiNewsToUiItems(raw: any): UiNewsItem[] {
+  const list = Array.isArray(raw?.data) ? raw.data : []
+  return list
+    .map((item: any) => {
+      const attrs = item?.attributes ?? item
+      const id = item?.id ?? item?.documentId
+      const title = attrs?.title
+      const slug = attrs?.slug
+      if (!id || !title || !slug) return null
+      const media = attrs?.coverImage
+      const url = media?.data?.attributes?.url ?? media?.url ?? null
+      const base = process.env.NEXT_PUBLIC_STRAPI_URL || ""
+      const image =
+        typeof url === "string"
+          ? /^https?:\/\//i.test(url)
+            ? url
+            : `${base.replace(/\/$/, "")}${url.startsWith("/") ? "" : "/"}${url}`
+          : null
+
+      return {
+        id: String(id),
+        slug: String(slug),
+        title: String(title),
+        excerpt: String(attrs?.excerpt ?? ""),
+        date: formatDate(String(attrs?.publishedAt ?? "")),
+        image,
+      } satisfies UiNewsItem
+    })
+    .filter(Boolean) as UiNewsItem[]
+}
+
 export default function NewsAndEventsPage() {
-  const items = [...NEWS_AND_EVENTS]
-  const featuredNews = items[0]
-  const recentNews = items.slice(1, 7)
-  const featuredImage = getCarImageForIndex(0)
-  const itemImages = items.map((_, idx) => getCarImageForIndex(idx))
+  const [items, setItems] = useState<UiNewsItem[]>(() => [...NEWS_AND_EVENTS])
+  const [searchQuery, setSearchQuery] = useState("")
+
+  const filteredItems = items.filter((item) => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return true
+    return (
+      item.title.toLowerCase().includes(q) ||
+      item.excerpt.toLowerCase().includes(q)
+    )
+  })
+
+  const featuredNews = filteredItems[0]
+  const recentNews = filteredItems.slice(1, 7)
+  const featuredImage = featuredNews?.image || getCarImageForIndex(0)
+  const itemImages = filteredItems.map((item, idx) => item.image || getCarImageForIndex(idx))
+
+  useEffect(() => {
+    const base = process.env.NEXT_PUBLIC_STRAPI_URL
+    if (!base) return
+    fetch(`${base.replace(/\/$/, "")}/api/news-items?populate=*&sort[0]=publishedAt:desc`)
+      .then(async (res) => {
+        if (!res.ok) return
+        const body = await res.json().catch(() => null)
+        const mapped = mapStrapiNewsToUiItems(body)
+        if (mapped.length) setItems(mapped)
+      })
+      .catch(() => {})
+  }, [])
 
   return (
     <div className="min-h-screen bg-slate-50/50">
@@ -47,18 +118,15 @@ export default function NewsAndEventsPage() {
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="relative hidden md:block">
+            <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
               <input 
                 type="text" 
                 placeholder="Search articles..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 pr-4 py-2 bg-slate-100 border-none rounded-full text-sm w-64 focus:ring-2 focus:ring-blue-500 transition-all"
               />
-            </div>
-            <div className="h-8 w-[1px] bg-slate-200 hidden md:block" />
-            <div className="flex items-center gap-2">
-              <button className="p-2 rounded-lg bg-blue-50 text-blue-600"><Grid size={18} /></button>
-              <button className="p-2 rounded-lg text-slate-400 hover:bg-slate-100"><List size={18} /></button>
             </div>
           </div>
         </div>
@@ -89,7 +157,7 @@ export default function NewsAndEventsPage() {
                 {featuredNews.title}
               </h2>
               <LocalizedClientLink
-                href="/cars"
+                href={`/news-events/${featuredNews.slug}`}
                 className="inline-flex items-center gap-3 px-8 py-3 rounded-full bg-white text-slate-950 font-black text-xs uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all"
               >
                 Read Featured Story <ChevronRight size={16} />
@@ -106,7 +174,7 @@ export default function NewsAndEventsPage() {
             </h3>
             
             <div className="grid grid-cols-1 gap-12">
-{items.map((item, idx) => (
+              {filteredItems.map((item, idx) => (
                 <motion.article
                   key={item.id}
                   initial={{ opacity: 0, x: -20 }}
@@ -114,12 +182,12 @@ export default function NewsAndEventsPage() {
                   transition={{ delay: idx * 0.1 }}
                   className="group flex flex-col md:flex-row gap-8"
                 >
-                  <div className="relative w-full md:w-72 aspect-[4/3] rounded-3xl overflow-hidden shrink-0 shadow-xl shadow-slate-200">
+                  <div className="relative w-full md:w-72 aspect-[4/3] shrink-0">
                     <Image
                       src={itemImages[idx] ?? PLACEHOLDER_IMAGE_URL}
                       alt={item.title}
                       fill
-                      className="object-cover group-hover:scale-110 transition-transform duration-700"
+                      className="object-contain group-hover:scale-105 transition-transform duration-700"
                     />
                   </div>
                   <div className="flex flex-col justify-center py-2">
@@ -133,7 +201,7 @@ export default function NewsAndEventsPage() {
                       {item.excerpt}
                     </p>
                     <LocalizedClientLink
-                      href="/cars"
+                      href={`/news-events/${item.slug}`}
                       className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 group-hover:text-slate-950 flex items-center gap-2 transition-all"
                     >
                       Continue Reading <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
@@ -141,39 +209,29 @@ export default function NewsAndEventsPage() {
                   </div>
                 </motion.article>
               ))}
+              {filteredItems.length === 0 && (
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
+                  No news articles match your search.
+                </div>
+              )}
             </div>
           </main>
 
           {/* ── Sidebar ── */}
           <aside className="lg:col-span-4 space-y-10">
-            {/* Newsletter Card */}
-            <div className="bg-slate-900 rounded-[2.5rem] p-8 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/20 rounded-full blur-3xl" />
-              <Mail className="text-blue-500 mb-6" size={32} />
-              <h4 className="text-xl font-black text-white mb-2">Be the first to know.</h4>
-              <p className="text-slate-400 text-sm leading-relaxed mb-8">
-                Exclusive car launches, reviews, and market trends delivered weekly.
-              </p>
-              <div className="space-y-3">
-                <input 
-                  type="email" 
-                  placeholder="Your email address" 
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3 text-sm text-white focus:ring-2 focus:ring-blue-600 outline-none transition-all"
-                />
-                <button className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-3 rounded-2xl text-xs uppercase tracking-widest transition-all">
-                  Subscribe Now
-                </button>
-              </div>
-            </div>
-
             {/* Trending Section */}
             <div className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm">
               <h4 className="text-xs font-black uppercase tracking-[0.3em] text-slate-400 mb-8">Must Read</h4>
               <div className="space-y-8">
                 {recentNews.map((n, idx) => (
-                  <LocalizedClientLink key={n.id} href="/cars" className="group flex gap-4">
-                    <div className="w-16 h-16 rounded-2xl bg-slate-100 overflow-hidden shrink-0 relative">
-                       <Image src={getCarImageForIndex(idx + 1)} alt={n.title} fill className="object-cover opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all" />
+                  <LocalizedClientLink key={n.id} href={`/news-events/${n.slug}`} className="group flex gap-4">
+                    <div className="w-16 h-16 shrink-0 relative">
+                       <Image
+                         src={n.image || getCarImageForIndex(idx + 1)}
+                         alt={n.title}
+                         fill
+                         className="object-contain opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all"
+                       />
                     </div>
                     <div className="flex flex-col justify-center">
                       <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{n.date}</span>
