@@ -1,5 +1,6 @@
 import { Metadata } from "next"
 import { listCars, getCarFilterOptions } from "@lib/data/cars"
+import { getRootCategoriesForSitemap, mergeBrandOptionsFromCategoryTree } from "@lib/data/categories"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import Image from "next/image"
 import { readdir } from "fs/promises"
@@ -142,7 +143,11 @@ export default async function BrandsPage(props: {
 }) {
   const { countryCode } = await props.params
   const { cars } = await listCars(countryCode)
-  const { brands: apiBrands } = await getCarFilterOptions(cars)
+  const [filterOpts, rootCategories] = await Promise.all([
+    getCarFilterOptions(cars),
+    getRootCategoriesForSitemap(),
+  ])
+  const { brands: apiBrands } = mergeBrandOptionsFromCategoryTree(filterOpts, rootCategories)
   const logoMap = await getBrandLogoMapFromPublic()
 
   const allBrandNames = Array.from(

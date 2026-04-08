@@ -171,7 +171,7 @@ export default function CarDetailTemplate({ car, variantIdFromUrl, customer, rel
             {/* Trims (trim list from metadata.variant_filters) */}
             {variantList.length > 0 && (
               <div>
-                <h3 className="text-xl font-bold text-gray-900 mb-6">Trims</h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-6">Variants</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {variantList.map((v) => {
                     const isCurrent = v.variant === car.handle

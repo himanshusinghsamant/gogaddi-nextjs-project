@@ -73,7 +73,7 @@ export default function CarFilters({ options, active, categoryOptions = [], maxP
   return (
     <aside className="w-full lg:w-72 shrink-0">
       <div
-        className="bg-white rounded-2xl border border-gray-200 shadow-sm sticky top-24 flex flex-col max-h-[calc(100vh-8rem)]"
+        className="bg-white rounded-2xl border border-gray-200 shadow-sm sticky top-24 flex flex-col"
         role="complementary"
         aria-label="Car filters"
       >

@@ -4,6 +4,8 @@ import { getCacheOptions, getAuthHeaders } from "./cookies"
 import { listProducts } from "./products"
 import { HttpTypes } from "@medusajs/types"
 import type { CarVariantFilters } from "@lib/util/car-variant-filters"
+import { ALL_CAR_FUEL_TYPES } from "./car-filter-presets"
+import { getIndiaCityNamesSorted } from "./india-cities"
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
 
@@ -46,6 +48,8 @@ export type CarListItem = {
   subtitle: string | null
   brand: string | null
   model: string | null
+  /** Product category display names (for filters aligned with category tree). */
+  category_names: string[]
   category_handles: string[]
   fuel_type: string | null
   transmission: string | null
@@ -229,17 +233,36 @@ function mapProductToCar(p: HttpTypes.StoreProduct): CarListItem {
 
   const images = (p.images ?? []).map((img: any) => img?.url).filter(Boolean)
 
-  let price = pickPriceFromVariant(firstVariant)
+  // Prefer "metadata.price" (seeded as INR major units like "820000").
+  // Frontend expects car.price in paise to work with `formatCarPrice` and filter normalization.
+  let price: number | null = null
+  const metadataPriceRaw = meta?.price
+  const metadataPriceNum = metadataPriceRaw != null ? Number(metadataPriceRaw) : NaN
+  if (Number.isFinite(metadataPriceNum) && metadataPriceNum > 0) {
+    // Convert INR major -> paise
+    price = Math.round(metadataPriceNum * 100)
+  }
+
+  let fallbackPrice = pickPriceFromVariant(firstVariant)
   if (price == null && Array.isArray(p.variants)) {
     for (const v of p.variants as any[]) {
-      price = pickPriceFromVariant(v)
-      if (price != null) break
+      fallbackPrice = pickPriceFromVariant(v)
+      if (fallbackPrice != null) break
     }
   }
+  price = price ?? fallbackPrice ?? null
 
   const category_handles = ((p.categories as any[]) ?? [])
     .map((c: any) => c?.handle)
     .filter(Boolean) as string[]
+
+  const category_names = Array.from(
+    new Set(
+      ((p.categories as any[]) ?? [])
+        .map((c: any) => (c?.name != null ? String(c.name).trim() : ""))
+        .filter(Boolean)
+    )
+  )
 
   return {
     id: p.id!,
@@ -250,6 +273,7 @@ function mapProductToCar(p: HttpTypes.StoreProduct): CarListItem {
     subtitle: (p as any).subtitle ?? null,
     brand,
     model: (meta.model as string) ?? (p as any).subtitle ?? p.handle ?? null,
+    category_names,
     category_handles,
     fuel_type: fuel_type ?? null,
     transmission,
@@ -407,32 +431,31 @@ export async function getCarsByHandles(
 }
 
 export async function getCarFilterOptions(cars: CarListItem[]): Promise<CarFilterOptions> {
-  const brands = Array.from(new Set((cars.map((c) => c.brand).filter(Boolean) as string[]))).sort()
-
-  const fuelTypesSet = new Set<string>()
   const transmissionsSet = new Set<string>()
 
   for (const car of cars) {
     const entry = car.variant_filters?.variants?.find((v) => v.variant === car.handle) ?? null
     if (entry) {
-      for (const ft of entry.fuelType ?? []) {
-        if (ft) fuelTypesSet.add(String(ft))
-      }
       for (const tr of entry.transmission ?? []) {
         if (tr) transmissionsSet.add(String(tr))
       }
     } else {
-      if (car.fuel_type) fuelTypesSet.add(car.fuel_type)
       if (car.transmission) transmissionsSet.add(car.transmission)
     }
   }
 
-  const fuelTypes = Array.from(fuelTypesSet).sort()
+  /** Full preset list (Petrol, Diesel, EV, hybrids, CNG, …); not limited to current inventory. */
+  const fuelTypes = [...ALL_CAR_FUEL_TYPES]
   const transmissions = Array.from(transmissionsSet).sort()
-  const cities = Array.from(new Set((cars.map((c) => c.city).filter(Boolean) as string[]))).sort()
+  const inventoryCities = cars.map((c) => c.city).filter(Boolean) as string[]
+  const cities = Array.from(
+    new Set([...getIndiaCityNamesSorted(), ...inventoryCities])
+  ).sort((a, b) => a.localeCompare(b, "en"))
   const years = Array.from(new Set((cars.map((c) => c.year).filter(Boolean) as string[]))).sort((a, b) => Number(b) - Number(a))
   const owners = Array.from(new Set((cars.map((c) => c.owner).filter(Boolean) as string[]))).sort()
   const models = Array.from(new Set((cars.map((c) => c.model).filter(Boolean) as string[]))).sort()
+  /** Fallback when category tree is empty: derive from product `brand` field. */
+  const brands = Array.from(new Set((cars.map((c) => c.brand).filter(Boolean) as string[]))).sort()
   return { brands, fuelTypes, transmissions, cities, years, owners, models }
 }
 

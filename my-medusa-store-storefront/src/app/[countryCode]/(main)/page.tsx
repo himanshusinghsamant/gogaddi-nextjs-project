@@ -1,4 +1,5 @@
 import { listCars, getCarFilterOptions } from "@lib/data/cars"
+import { getRootCategoriesForSitemap, mergeBrandOptionsFromCategoryTree } from "@lib/data/categories"
 import { Metadata } from "next"
 import { Suspense } from "react"
 import Image from "next/image"
@@ -146,8 +147,12 @@ export default async function HomePage(props: {
 }) {
   const { countryCode } = await props.params
   const { cars } = await listCars(countryCode)
-  const filterOptions = await getCarFilterOptions(cars)
-  const brands = filterOptions.brands.length > 0 ? filterOptions.brands : FALLBACK_BRANDS
+  const [filterOptions, rootCategories] = await Promise.all([
+    getCarFilterOptions(cars),
+    getRootCategoriesForSitemap(),
+  ])
+  const filterOptionsMerged = mergeBrandOptionsFromCategoryTree(filterOptions, rootCategories)
+  const brands = filterOptionsMerged.brands.length > 0 ? filterOptionsMerged.brands : FALLBACK_BRANDS
   const brandLogoItems = await getBrandLogoItems(brands)
   const brandCarImages = await getBrandCarImages(brands)
 
@@ -185,9 +190,9 @@ export default async function HomePage(props: {
               <div className="mt-6">
                 <Suspense>
                   <CarSearchBar
-                    brands={filterOptions.brands}
-                    fuelTypes={filterOptions.fuelTypes}
-                    cities={filterOptions.cities}
+                    brands={filterOptionsMerged.brands}
+                    fuelTypes={filterOptionsMerged.fuelTypes}
+                    cities={filterOptionsMerged.cities}
                   />
                 </Suspense>
               </div>
@@ -196,7 +201,7 @@ export default async function HomePage(props: {
             <div className="flex gap-12 mt-5 border-t border-white/10 pt-5 max-w-2xl">
               {[
                 { value: `${cars.length}+`, label: "Premium Cars" },
-                { value: `${filterOptions.brands.length}+`, label: "Global Brands" },
+                { value: `${filterOptionsMerged.brands.length}+`, label: "Global Brands" },
                 { value: "100%", label: "Quality Verified" },
               ].map((s) => (
                 <div key={s.label}>

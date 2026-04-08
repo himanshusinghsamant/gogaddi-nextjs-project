@@ -1,6 +1,7 @@
 import { listCars, getCarFilterOptions } from "@lib/data/cars"
+import { fuelTypeMatchesFilter } from "@lib/data/car-filter-presets"
 import type { CarListItem } from "@lib/data/cars"
-import { getRootCategoriesForSitemap } from "@lib/data/categories"
+import { getRootCategoriesForSitemap, mergeBrandOptionsFromCategoryTree } from "@lib/data/categories"
 import { Metadata } from "next"
 import { Suspense } from "react"
 import CarCard from "@modules/cars/components/car-card"
@@ -55,9 +56,9 @@ function filterAndSort(
     const entry = car.variant_filters?.variants?.find((v) => v.variant === car.handle) ?? null
     const allowed = entry?.fuelType ?? []
     if (allowed.length > 0) {
-      return allowed.some((ft) => normalize(ft) === normalize(fuelType))
+      return allowed.some((ft) => fuelTypeMatchesFilter(ft, fuelType))
     }
-    return normalize(car.fuel_type) === normalize(fuelType)
+    return fuelTypeMatchesFilter(car.fuel_type, fuelType)
   }
 
   const carSupportsTransmission = (car: CarListItem, transmission: string): boolean => {
@@ -92,7 +93,14 @@ function filterAndSort(
       return handleMatch || modelMatch
     })
   }
-  if (params.brand) result = result.filter((c) => c.brand === params.brand)
+  if (params.brand) {
+    const b = params.brand.trim()
+    result = result.filter(
+      (c) =>
+        c.brand === b ||
+        (c.category_names ?? []).some((n) => n === b)
+    )
+  }
   if (params.fuelType) {
     const fuelType = params.fuelType
     result = result.filter((c) => carSupportsFuelType(c, fuelType))
@@ -204,6 +212,8 @@ export default async function CarsListingPage(props: {
     getRootCategoriesForSitemap(),
   ])
 
+  const filterOptionsForUi = mergeBrandOptionsFromCategoryTree(filterOptions, rootCategories)
+
   // value = slug for URL/filter; label = display only e.g. { value: "maruti-suzuki-alto-800", label: "--Maruti Suzuki Alto 800--" }
   const categoryOptions = (() => {
     const flat: { value: string; label: string }[] = [{ value: "", label: "--All Categories--" }]
@@ -312,7 +322,7 @@ export default async function CarsListingPage(props: {
           <Suspense fallback={<div className="hidden lg:block lg:w-72 shrink-0 h-96 bg-gray-100 rounded-2xl animate-pulse" />}>
             <div className="hidden lg:block lg:w-72 shrink-0">
               <CarFilters
-                options={filterOptions}
+                options={filterOptionsForUi}
                 active={activeFilters}
                 categoryOptions={categoryOptions}
                 maxPriceOptions={maxPriceOptionsForSidebar}
@@ -324,7 +334,7 @@ export default async function CarsListingPage(props: {
           <div className="flex-1 min-w-0">
             {/* Mobile quick filter bar */}
             <MobileFilterBar
-              options={filterOptions}
+              options={filterOptionsForUi}
               categoryOptions={categoryOptions}
               active={{
                 carType: activeFilters.carType,
