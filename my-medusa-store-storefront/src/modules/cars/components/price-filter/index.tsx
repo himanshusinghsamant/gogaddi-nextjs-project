@@ -10,6 +10,7 @@ type Props = {
   label?: string
   minPlaceholder?: string
   maxPlaceholder?: string
+  hint?: string
   className?: string
 }
 
@@ -22,6 +23,7 @@ export default function PriceFilter({
   label = "Price range (₹)",
   minPlaceholder = "Min",
   maxPlaceholder = "Max",
+  hint,
   className = "",
 }: Props) {
   return (
@@ -31,25 +33,30 @@ export default function PriceFilter({
           {label}
         </h4>
       )}
+      {hint ? (
+        <p className="text-[10px] text-slate-500 leading-snug mb-2">{hint}</p>
+      ) : null}
       <div className="flex gap-2 items-center">
         <TextField
-          type="number"
+          type="text"
           placeholder={minPlaceholder}
           value={priceMin}
           onChange={(e) => onMinChange(e.target.value)}
           containerClassName="flex-1 text-sm"
           inputClassName="text-sm"
-          inputMode="numeric"
+          inputMode="decimal"
+          autoComplete="off"
         />
         <span className="text-slate-300 font-medium text-xs">–</span>
         <TextField
-          type="number"
+          type="text"
           placeholder={maxPlaceholder}
           value={priceMax}
           onChange={(e) => onMaxChange(e.target.value)}
           containerClassName="flex-1 text-sm"
           inputClassName="text-sm"
-          inputMode="numeric"
+          inputMode="decimal"
+          autoComplete="off"
         />
       </div>
     </div>

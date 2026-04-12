@@ -19,6 +19,8 @@ export type TextFieldProps = Omit<
   inputClassName?: string
   labelClassName?: string
   onClear?: () => void
+  /** Rendered inside the field on the right (e.g. icon button). Shown after the clear control when present. */
+  suffix?: React.ReactNode
 }
 
 const TextField = forwardRef<HTMLInputElement, TextFieldProps>(
@@ -34,6 +36,7 @@ const TextField = forwardRef<HTMLInputElement, TextFieldProps>(
       onFocus,
       onBlur,
       onChange,
+      suffix,
       ...props
     },
     ref
@@ -93,9 +96,10 @@ const TextField = forwardRef<HTMLInputElement, TextFieldProps>(
             onFocus={handleFocus}
             onBlur={handleBlur}
             className={`
-              w-full flex-1 min-w-0 bg-transparent border-none rounded-2xl px-4 outline-none text-sm font-medium text-slate-900 placeholder:text-slate-400
+              w-full flex-1 min-w-0 bg-transparent border-none rounded-2xl pl-4 outline-none text-sm font-medium text-slate-900 placeholder:text-slate-400
               transition-[padding] duration-300
               ${isFloated ? "pt-4 pb-3" : "pt-6 pb-3"}
+              ${suffix || (hasValue && !props.disabled && props.type !== "password") ? "pr-2" : "pr-4"}
               ${props.disabled ? "cursor-not-allowed" : ""}
               ${inputClassName}
             `}
@@ -108,13 +112,14 @@ const TextField = forwardRef<HTMLInputElement, TextFieldProps>(
             <button
               type="button"
               onClick={handleClear}
-              className="p-1 rounded-full hover:bg-slate-200 text-slate-400 transition-colors mr-2 shrink-0"
+              className={`p-1 rounded-full hover:bg-slate-200 text-slate-400 transition-colors shrink-0 ${suffix != null ? "mr-0" : "mr-2"}`}
               aria-label="Clear"
               tabIndex={-1}
             >
               <XIcon />
             </button>
           )}
+          {suffix != null ? <div className="shrink-0 flex items-center pr-1">{suffix}</div> : null}
         </div>
 
         {error && (

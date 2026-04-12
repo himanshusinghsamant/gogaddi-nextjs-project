@@ -1,14 +1,15 @@
 "use client"
 
-import { useCallback, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import type { CarFilterOptions } from "@lib/data/cars"
+import { normalizePriceRangeForQuery } from "@lib/util/format-car-price"
 import TextField from "@modules/common/components/text-field"
 import SelectField from "@modules/common/components/select-field"
 import Button from "@modules/common/components/button"
 import BrandFilter from "@modules/cars/components/brand-filter"
 import PriceFilter from "@modules/cars/components/price-filter"
-import { Filter, X } from "lucide-react"
+import { Filter, Search, X } from "lucide-react"
 
 export type CategoryOption = { value: string; label: string }
 
@@ -64,11 +65,43 @@ export default function CarFilters({ options, active, categoryOptions = [], maxP
     [router, pathname, searchParams]
   )
 
+  const [draftQuery, setDraftQuery] = useState(active.query ?? "")
+  const [draftPriceMin, setDraftPriceMin] = useState(active.priceMin ?? "")
+  const [draftPriceMax, setDraftPriceMax] = useState(active.priceMax ?? "")
+
+  useEffect(() => {
+    setDraftQuery(active.query ?? "")
+    setDraftPriceMin(active.priceMin ?? "")
+    setDraftPriceMax(active.priceMax ?? "")
+  }, [active.query, active.priceMin, active.priceMax])
+
+  const applySearch = () => {
+    const params = new URLSearchParams(searchParams.toString())
+    const q = draftQuery.trim()
+    if (q) params.set("query", q)
+    else params.delete("query")
+    params.delete("page")
+    router.push(`${pathname}?${params.toString()}`)
+  }
+
+  const applyPriceRange = () => {
+    const params = new URLSearchParams(searchParams.toString())
+    const { priceMin, priceMax } = normalizePriceRangeForQuery(draftPriceMin, draftPriceMax)
+    if (priceMin) params.set("priceMin", priceMin)
+    else params.delete("priceMin")
+    if (priceMax) params.set("priceMax", priceMax)
+    else params.delete("priceMax")
+    params.delete("page")
+    router.push(`${pathname}?${params.toString()}`)
+  }
+
   const clearAll = () => {
     router.push(pathname)
   }
 
   const hasFilters = Object.values(active).some(Boolean)
+  const priceDirty =
+    draftPriceMin !== (active.priceMin ?? "") || draftPriceMax !== (active.priceMax ?? "")
 
   return (
     <aside className="w-full lg:w-72 shrink-0">
@@ -97,9 +130,25 @@ export default function CarFilters({ options, active, categoryOptions = [], maxP
           <TextField
             label="Search"
             placeholder="Search by name..."
-            value={active.query ?? ""}
-            onChange={(e) => update("query", e.target.value)}
+            value={draftQuery}
+            onChange={(e) => setDraftQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault()
+                applySearch()
+              }
+            }}
             containerClassName={`text-sm ${COMPACT_INPUT}`}
+            suffix={
+              <button
+                type="button"
+                onClick={() => applySearch()}
+                className="p-2 rounded-xl text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                aria-label="Search"
+              >
+                <Search size={18} strokeWidth={2.25} />
+              </button>
+            }
           />
 
           {categoryOptions.length > 0 && (
@@ -222,13 +271,30 @@ export default function CarFilters({ options, active, categoryOptions = [], maxP
             />
           )}
 
-          <PriceFilter
-            priceMin={active.priceMin ?? ""}
-            priceMax={active.priceMax ?? ""}
-            onMinChange={(v) => update("priceMin", v)}
-            onMaxChange={(v) => update("priceMax", v)}
-            label="Price range (₹)"
-          />
+          <div className="space-y-2">
+            <PriceFilter
+              priceMin={draftPriceMin}
+              priceMax={draftPriceMax}
+              onMinChange={setDraftPriceMin}
+              onMaxChange={setDraftPriceMax}
+              label="Price range"
+              hint="Use lac or cr like the listings: e.g. 5, 5.5L, 8 lac, 1.2 cr — or full rupees (550000)."
+              minPlaceholder="e.g. 5 or 5L"
+              maxPlaceholder="e.g. 15 or 1.2cr"
+            />
+            <Button
+              type="button"
+              variant="primary"
+              size="full"
+              onClick={applyPriceRange}
+              className="!rounded-xl text-xs font-bold uppercase tracking-wider"
+            >
+              Apply price range
+            </Button>
+            {priceDirty && (
+              <p className="text-[10px] text-amber-600 font-medium">Click apply to filter by price.</p>
+            )}
+          </div>
         </div>
       </div>
     </aside>

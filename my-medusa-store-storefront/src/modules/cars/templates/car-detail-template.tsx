@@ -426,7 +426,7 @@ export default function CarDetailTemplate({ car, variantIdFromUrl, customer, rel
             <div className="flex items-end justify-between mb-10">
               <div>
                 <h2 className="text-3xl font-bold text-gray-900 mb-2">Related Vehicles</h2>
-                <p className="text-gray-500">Explore other trims for this model</p>
+                <p className="text-gray-500">More listings from across our inventory</p>
               </div>
               <LocalizedClientLink href="/cars" className="text-blue-600 font-bold hover:underline">
                 View all inventory

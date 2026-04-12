@@ -1,11 +1,14 @@
 "use client"
 
-import { useCallback, useState, useRef, useEffect } from "react"
+import { useCallback, useState, useEffect } from "react"
 import { createPortal } from "react-dom"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import type { CarFilterOptions } from "@lib/data/cars"
+import { normalizePriceRangeForQuery } from "@lib/util/format-car-price"
 import type { CategoryOption } from "@modules/cars/components/car-filters"
-import { SlidersHorizontal, ChevronDown, Check, X } from "lucide-react"
+import TextField from "@modules/common/components/text-field"
+import Button from "@modules/common/components/button"
+import { SlidersHorizontal, ChevronDown, Check, Search, X } from "lucide-react"
 
 type ActiveFilters = {
   category?: string
@@ -19,6 +22,9 @@ type ActiveFilters = {
   model?: string
   city?: string
   sortBy?: string
+  query?: string
+  priceMin?: string
+  priceMax?: string
 }
 
 type Props = {
@@ -166,6 +172,39 @@ export default function MobileFilterBar({ options, active, categoryOptions, maxP
     [router, pathname, searchParams]
   )
 
+  const [draftQuery, setDraftQuery] = useState(active.query ?? "")
+  const [draftPriceMin, setDraftPriceMin] = useState(active.priceMin ?? "")
+  const [draftPriceMax, setDraftPriceMax] = useState(active.priceMax ?? "")
+
+  useEffect(() => {
+    setDraftQuery(active.query ?? "")
+    setDraftPriceMin(active.priceMin ?? "")
+    setDraftPriceMax(active.priceMax ?? "")
+  }, [active.query, active.priceMin, active.priceMax])
+
+  const applySearch = () => {
+    const params = new URLSearchParams(searchParams.toString())
+    const q = draftQuery.trim()
+    if (q) params.set("query", q)
+    else params.delete("query")
+    params.delete("page")
+    router.push(`${pathname}?${params.toString()}`)
+  }
+
+  const applyPriceRange = () => {
+    const params = new URLSearchParams(searchParams.toString())
+    const { priceMin, priceMax } = normalizePriceRangeForQuery(draftPriceMin, draftPriceMax)
+    if (priceMin) params.set("priceMin", priceMin)
+    else params.delete("priceMin")
+    if (priceMax) params.set("priceMax", priceMax)
+    else params.delete("priceMax")
+    params.delete("page")
+    router.push(`${pathname}?${params.toString()}`)
+  }
+
+  const priceDirty =
+    draftPriceMin !== (active.priceMin ?? "") || draftPriceMax !== (active.priceMax ?? "")
+
   return (
     <div className="lg:hidden mb-6">
       <div className="flex items-center gap-2 mb-3 text-xs font-bold text-gray-400 uppercase tracking-widest px-1">
@@ -273,6 +312,76 @@ export default function MobileFilterBar({ options, active, categoryOptions, maxP
             onChange={(v) => update("city", v)}
           />
         )}
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-gray-200 bg-white p-4 space-y-4 shadow-sm">
+        <div className="space-y-2">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Search</p>
+          <TextField
+            label="Search"
+            placeholder="Search by name..."
+            value={draftQuery}
+            onChange={(e) => setDraftQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault()
+                applySearch()
+              }
+            }}
+            containerClassName="text-sm"
+            suffix={
+              <button
+                type="button"
+                onClick={() => applySearch()}
+                className="p-2 rounded-xl text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                aria-label="Search"
+              >
+                <Search size={18} strokeWidth={2.25} />
+              </button>
+            }
+          />
+        </div>
+
+        <div className="border-t border-gray-100 pt-4 space-y-2">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Price range</p>
+          <p className="text-[10px] text-slate-500 leading-snug">
+            Match listing format: 5, 5.5L, 8 lac, 1.2 cr, or 550000 (₹).
+          </p>
+          <div className="flex gap-2 items-end">
+            <TextField
+              type="text"
+              label="Min"
+              placeholder="e.g. 5L"
+              value={draftPriceMin}
+              onChange={(e) => setDraftPriceMin(e.target.value)}
+              containerClassName="flex-1 text-sm"
+              inputMode="decimal"
+              autoComplete="off"
+            />
+            <TextField
+              type="text"
+              label="Max"
+              placeholder="e.g. 15L"
+              value={draftPriceMax}
+              onChange={(e) => setDraftPriceMax(e.target.value)}
+              containerClassName="flex-1 text-sm"
+              inputMode="decimal"
+              autoComplete="off"
+            />
+          </div>
+          <Button
+            type="button"
+            variant="primary"
+            size="full"
+            onClick={applyPriceRange}
+            className="!rounded-xl text-xs font-bold uppercase tracking-wider"
+          >
+            Apply price range
+          </Button>
+          {priceDirty && (
+            <p className="text-[10px] text-amber-600 font-medium">Tap apply to filter by price.</p>
+          )}
+        </div>
       </div>
     </div>
   )

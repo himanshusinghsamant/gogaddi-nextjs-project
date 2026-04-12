@@ -1,4 +1,5 @@
 import { listCars, getCarFilterOptions } from "@lib/data/cars"
+import { getCarListPriceInRupees, normalizePriceRangeBounds } from "@lib/util/format-car-price"
 import { fuelTypeMatchesFilter } from "@lib/data/car-filter-presets"
 import type { CarListItem } from "@lib/data/cars"
 import { getRootCategoriesForSitemap, mergeBrandOptionsFromCategoryTree } from "@lib/data/categories"
@@ -8,7 +9,7 @@ import CarCard from "@modules/cars/components/car-card"
 import CarFilters from "@modules/cars/components/car-filters"
 import MobileFilterBar from "@modules/cars/components/mobile-filter-bar"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
-import { ChevronRight, X } from "lucide-react"
+import { ChevronLeft, ChevronRight, X } from "lucide-react"
 
 export const metadata: Metadata = {
   title: "Premium Cars Inventory | GoGaddi",
@@ -16,6 +17,17 @@ export const metadata: Metadata = {
 }
 
 const PAGE_SIZE = 12
+/** Max page number buttons shown at once; Prev/Next jump by groups of this size. */
+const PAGINATION_WINDOW = 10
+
+function buildCarsListingHref(filters: Record<string, string | undefined>, pageNum: number): string {
+  const params = new URLSearchParams()
+  for (const [k, v] of Object.entries(filters)) {
+    if (v) params.set(k, String(v))
+  }
+  params.set("page", String(pageNum))
+  return `/cars?${params.toString()}`
+}
 
 /** Normalize to slug for consistent category filter comparison (value, not label). */
 function toCategorySlug(s: string): string {
@@ -26,9 +38,11 @@ function toCategorySlug(s: string): string {
     .replace(/[^a-z0-9-]/g, "")
 }
 
-function getCarPriceNormalized(car: CarListItem): number {
-  const p = car.price ?? 0
-  return p >= 10000 ? p / 100 : p
+function normalizeBrandValue(value: string | null | undefined): string {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ")
 }
 
 function filterAndSort(
@@ -94,12 +108,22 @@ function filterAndSort(
     })
   }
   if (params.brand) {
-    const b = params.brand.trim()
-    result = result.filter(
-      (c) =>
-        c.brand === b ||
-        (c.category_names ?? []).some((n) => n === b)
-    )
+    const selectedBrand = normalizeBrandValue(params.brand)
+    result = result.filter((c) => {
+      const candidates = [
+        c.brand,
+        ...(c.category_names ?? []),
+      ]
+        .filter(Boolean)
+        .map((v) => normalizeBrandValue(v))
+
+      return candidates.some(
+        (brand) =>
+          brand === selectedBrand ||
+          brand.includes(selectedBrand) ||
+          selectedBrand.includes(brand)
+      )
+    })
   }
   if (params.fuelType) {
     const fuelType = params.fuelType
@@ -123,28 +147,52 @@ function filterAndSort(
         (c.brand && c.brand.toLowerCase().includes(q))
     )
   }
-  if (params.priceMin) {
-    const min = Number(params.priceMin)
-    result = result.filter((c) => getCarPriceNormalized(c) >= min)
-  }
-  if (params.priceMax) {
-    const max = Number(params.priceMax)
-    result = result.filter((c) => getCarPriceNormalized(c) <= max)
+  const { minRupees, maxRupees } = normalizePriceRangeBounds(params.priceMin, params.priceMax)
+  if (minRupees != null || maxRupees != null) {
+    result = result.filter((c) => {
+      const r = getCarListPriceInRupees(c)
+      if (r == null) return false
+      if (minRupees != null && r < minRupees) return false
+      if (maxRupees != null && r > maxRupees) return false
+      return true
+    })
   }
   if (params.maxPrice) {
     if (params.maxPrice === "20_plus") {
-      result = result.filter((c) => getCarPriceNormalized(c) >= 2000000)
+      result = result.filter((c) => {
+        const r = getCarListPriceInRupees(c)
+        return r != null && r >= 2000000
+      })
     } else {
-      const maxVal = Number(params.maxPrice)
-      if (Number.isFinite(maxVal)) result = result.filter((c) => getCarPriceNormalized(c) <= maxVal)
+      const maxVal = Number(String(params.maxPrice).trim())
+      if (Number.isFinite(maxVal)) {
+        result = result.filter((c) => {
+          const r = getCarListPriceInRupees(c)
+          return r != null && r <= maxVal
+        })
+      }
     }
   }
   switch (params.sortBy) {
     case "price_asc":
-      result.sort((a, b) => getCarPriceNormalized(a) - getCarPriceNormalized(b))
+      result.sort((a, b) => {
+        const ra = getCarListPriceInRupees(a)
+        const rb = getCarListPriceInRupees(b)
+        if (ra == null && rb == null) return 0
+        if (ra == null) return 1
+        if (rb == null) return -1
+        return ra - rb
+      })
       break
     case "price_desc":
-      result.sort((a, b) => getCarPriceNormalized(b) - getCarPriceNormalized(a))
+      result.sort((a, b) => {
+        const ra = getCarListPriceInRupees(a)
+        const rb = getCarListPriceInRupees(b)
+        if (ra == null && rb == null) return 0
+        if (ra == null) return 1
+        if (rb == null) return -1
+        return rb - ra
+      })
       break
     case "newest":
       result.sort((a, b) => (Number(b.year) || 0) - (Number(a.year) || 0))
@@ -247,9 +295,14 @@ export default async function CarsListingPage(props: {
   }
 
   const filtered = filterAndSort(cars, sp)
-  const page = Math.max(1, Number(sp.page) || 1)
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const page = Math.min(Math.max(1, Number(sp.page) || 1), totalPages)
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+  const windowStart = Math.floor((page - 1) / PAGINATION_WINDOW) * PAGINATION_WINDOW + 1
+  const windowEnd = Math.min(windowStart + PAGINATION_WINDOW - 1, totalPages)
+  const prevGroupPage = windowStart > 1 ? windowStart - 1 : null
+  const nextGroupPage = windowEnd < totalPages ? windowEnd + 1 : null
 
   const activeFilters = {
     category: sp.category,
@@ -337,6 +390,7 @@ export default async function CarsListingPage(props: {
               options={filterOptionsForUi}
               categoryOptions={categoryOptions}
               active={{
+                category: activeFilters.category,
                 carType: activeFilters.carType,
                 maxPrice: activeFilters.maxPrice,
                 brand: activeFilters.brand,
@@ -347,6 +401,9 @@ export default async function CarsListingPage(props: {
                 year: activeFilters.year,
                 owner: activeFilters.owner,
                 model: activeFilters.model,
+                query: activeFilters.query,
+                priceMin: activeFilters.priceMin,
+                priceMax: activeFilters.priceMax,
               }}
               maxPriceOptions={maxPriceOptionsForSidebar}
             />
@@ -393,30 +450,88 @@ export default async function CarsListingPage(props: {
                   ))}
                 </div>
 
-                {/* Pagination */}
+                {/* Pagination — up to 10 page buttons; Prev/Next move by decade */}
                 {totalPages > 1 && (
-                  <nav className="flex justify-center gap-2 mt-16" aria-label="Pagination">
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => {
-                      const params = new URLSearchParams()
-                      Object.entries(activeFilters).forEach(([k, v]) => v && params.set(k, v))
-                      params.set("page", String(p))
-                      const isCurrent = p === page
-                      return (
+                  <nav
+                    className="mt-16 flex flex-col items-center gap-4"
+                    aria-label="Pagination"
+                  >
+                    <p className="text-xs font-semibold text-gray-500 tabular-nums">
+                      Page {page} of {totalPages}
+                      {totalPages > PAGINATION_WINDOW ? (
+                        <span className="text-gray-400 font-medium">
+                          {" "}
+                          · Pages {windowStart}–{windowEnd}
+                        </span>
+                      ) : null}
+                    </p>
+                    <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
+                      {prevGroupPage != null ? (
                         <LocalizedClientLink
-                          key={p}
-                          href={`/cars?${params.toString()}`}
-                          className={`
-                            w-12 h-12 flex items-center justify-center rounded-xl text-sm font-bold transition-all
-                            ${isCurrent
-                              ? "bg-gray-900 text-white shadow-lg scale-110"
-                              : "bg-white text-gray-500 border border-gray-200 hover:border-blue-500 hover:text-blue-600"}
-                          `}
-                          aria-current={isCurrent ? "page" : undefined}
+                          href={buildCarsListingHref(activeFilters, prevGroupPage)}
+                          className="inline-flex items-center gap-1.5 min-h-12 px-4 rounded-xl text-sm font-bold border border-gray-200 bg-white text-gray-800 hover:border-blue-500 hover:text-blue-600 transition-all shadow-sm"
+                          aria-label={`Previous pages (go to page ${prevGroupPage})`}
                         >
-                          {p}
+                          <ChevronLeft size={18} strokeWidth={2.25} aria-hidden />
+                          Previous
                         </LocalizedClientLink>
-                      )
-                    })}
+                      ) : (
+                        <span
+                          className="inline-flex items-center gap-1.5 min-h-12 px-4 rounded-xl text-sm font-bold border border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed select-none"
+                          aria-disabled="true"
+                        >
+                          <ChevronLeft size={18} strokeWidth={2.25} aria-hidden />
+                          Previous
+                        </span>
+                      )}
+
+                      <div
+                        className="flex flex-wrap items-center justify-center gap-2"
+                        role="group"
+                        aria-label={`Page numbers ${windowStart} to ${windowEnd}`}
+                      >
+                        {Array.from(
+                          { length: windowEnd - windowStart + 1 },
+                          (_, i) => windowStart + i
+                        ).map((p) => {
+                          const isCurrent = p === page
+                          return (
+                            <LocalizedClientLink
+                              key={p}
+                              href={buildCarsListingHref(activeFilters, p)}
+                              className={`
+                                min-w-12 h-12 px-2 flex items-center justify-center rounded-xl text-sm font-bold transition-all tabular-nums
+                                ${isCurrent
+                                  ? "bg-gray-900 text-white shadow-lg ring-2 ring-gray-900/10 scale-105"
+                                  : "bg-white text-gray-600 border border-gray-200 hover:border-blue-500 hover:text-blue-600"}
+                              `}
+                              aria-current={isCurrent ? "page" : undefined}
+                            >
+                              {p}
+                            </LocalizedClientLink>
+                          )
+                        })}
+                      </div>
+
+                      {nextGroupPage != null ? (
+                        <LocalizedClientLink
+                          href={buildCarsListingHref(activeFilters, nextGroupPage)}
+                          className="inline-flex items-center gap-1.5 min-h-12 px-4 rounded-xl text-sm font-bold border border-gray-200 bg-white text-gray-800 hover:border-blue-500 hover:text-blue-600 transition-all shadow-sm"
+                          aria-label={`Next pages (go to page ${nextGroupPage})`}
+                        >
+                          Next
+                          <ChevronRight size={18} strokeWidth={2.25} aria-hidden />
+                        </LocalizedClientLink>
+                      ) : (
+                        <span
+                          className="inline-flex items-center gap-1.5 min-h-12 px-4 rounded-xl text-sm font-bold border border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed select-none"
+                          aria-disabled="true"
+                        >
+                          Next
+                          <ChevronRight size={18} strokeWidth={2.25} aria-hidden />
+                        </span>
+                      )}
+                    </div>
                   </nav>
                 )}
               </>

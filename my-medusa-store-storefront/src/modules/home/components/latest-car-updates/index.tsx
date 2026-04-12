@@ -187,7 +187,7 @@ export default function LatestCarUpdates() {
             ))}
 
             {/* Premium "Join the Newsletter" CTA */}
-            <div className="mt-auto p-8 rounded-[2rem] bg-slate-950 relative overflow-hidden group">
+            {/* <div className="mt-auto p-8 rounded-[2rem] bg-slate-950 relative overflow-hidden group">
                <div className="absolute -right-4 -top-4 w-24 h-24 bg-blue-600/20 rounded-full blur-3xl group-hover:bg-blue-600/40 transition-all duration-700" />
                <h5 className="text-white font-bold mb-2">Stay in the loop</h5>
                <p className="text-slate-400 text-xs leading-relaxed mb-4">
@@ -203,7 +203,7 @@ export default function LatestCarUpdates() {
                    <ArrowRight size={16} />
                  </button>
                </div>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>

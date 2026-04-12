@@ -156,12 +156,12 @@ export default async function HomePage(props: {
   const brandLogoItems = await getBrandLogoItems(brands)
   const brandCarImages = await getBrandCarImages(brands)
 
-  const featuredCars = cars.slice(0, 8)
+  const featuredCars = cars.slice(-8)
   const latestCars = [...cars].sort((a, b) => (Number(b.year) || 0) - (Number(a.year) || 0)).slice(0, 4)
   const featuredTabs = {
-    featured: cars.slice(0, 3),
+    featured: cars.slice(-3),
     newest: [...cars].sort((a, b) => (Number(b.year) || 0) - (Number(a.year) || 0)).slice(0, 3),
-    moreListings: cars.slice(3, 6),
+    moreListings: cars.slice(-6, -3),
   }
 
   return (
@@ -249,7 +249,7 @@ export default async function HomePage(props: {
             </div>
           )}
 
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
+          {/* <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
             {brands.slice(0, 8).map((brandName) => {
               const imageSrc = brandCarImages[brandName]
               return (
@@ -281,7 +281,7 @@ export default async function HomePage(props: {
                 </LocalizedClientLink>
               )
             })}
-          </div>
+          </div> */}
         </div>
       </section>
 

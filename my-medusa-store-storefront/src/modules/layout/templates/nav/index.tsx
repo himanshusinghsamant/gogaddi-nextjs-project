@@ -22,9 +22,9 @@ export default async function Nav() {
             <Image
               src="/gogaddi-logo.webp"
               alt="GoGaddi"
-              width={140}
-              height={40}
-              className="h-8 md:h-9 w-auto object-contain brightness-0"
+              width={180}
+              height={46}
+              className="h-10 w-auto md:h-[3.1rem] object-contain brightness-0"
               priority
             />
           </LocalizedClientLink>
