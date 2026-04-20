@@ -1,6 +1,6 @@
 import { listCars, getCarFilterOptions } from "@lib/data/cars"
 import { getCarListPriceInRupees, normalizePriceRangeBounds } from "@lib/util/format-car-price"
-import { fuelTypeMatchesFilter } from "@lib/data/car-filter-presets"
+import { fuelTypeMatchesFilter, transmissionMatchesFilter } from "@lib/data/car-filter-presets"
 import type { CarListItem } from "@lib/data/cars"
 import { getRootCategoriesForSitemap, mergeBrandOptionsFromCategoryTree } from "@lib/data/categories"
 import { Metadata } from "next"
@@ -64,13 +64,16 @@ function filterAndSort(
     sortBy?: string
   }
 ): CarListItem[] {
-  const normalize = (s: string | null | undefined): string => String(s ?? "").trim().toLowerCase()
-
   const carSupportsFuelType = (car: CarListItem, fuelType: string): boolean => {
     const entry = car.variant_filters?.variants?.find((v) => v.variant === car.handle) ?? null
     const allowed = entry?.fuelType ?? []
     if (allowed.length > 0) {
       return allowed.some((ft) => fuelTypeMatchesFilter(ft, fuelType))
+    }
+    const optFuels =
+      car.product_options?.find((o) => /^fuel type$/i.test(o.title.trim()))?.values?.filter(Boolean) ?? []
+    if (optFuels.length > 0) {
+      return optFuels.some((ft) => fuelTypeMatchesFilter(ft, fuelType))
     }
     return fuelTypeMatchesFilter(car.fuel_type, fuelType)
   }
@@ -79,9 +82,14 @@ function filterAndSort(
     const entry = car.variant_filters?.variants?.find((v) => v.variant === car.handle) ?? null
     const allowed = entry?.transmission ?? []
     if (allowed.length > 0) {
-      return allowed.some((tr) => normalize(tr) === normalize(transmission))
+      return allowed.some((tr) => transmissionMatchesFilter(tr, transmission))
     }
-    return normalize(car.transmission) === normalize(transmission)
+    const optTrans =
+      car.product_options?.find((o) => /^transmission$/i.test(o.title.trim()))?.values?.filter(Boolean) ?? []
+    if (optTrans.length > 0) {
+      return optTrans.some((tr) => transmissionMatchesFilter(tr, transmission))
+    }
+    return transmissionMatchesFilter(car.transmission, transmission)
   }
 
   let result = [...cars]

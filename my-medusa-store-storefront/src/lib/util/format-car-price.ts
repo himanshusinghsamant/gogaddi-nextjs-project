@@ -28,12 +28,29 @@ export function getVersionPrice(prices: unknown): number | null {
 export type CarPriceLike = {
   price: number | null
   metadata?: { price?: unknown }
+  /** Medusa product.options (Fuel Type, Ex Showroom Price, …) — used when metadata/variant price missing */
+  product_options?: Array<{ title: string; values: string[] }>
+}
+
+/** Minimum ex-showroom whole rupees from Medusa product option "Ex Showroom Price (INR)" value list. */
+export function getMinExShowroomRupeesFromProductOptions(
+  productOptions: Array<{ title: string; values: string[] }> | undefined
+): number | null {
+  if (!Array.isArray(productOptions) || productOptions.length === 0) return null
+  const ex = productOptions.find((o) => /ex showroom price.*inr/i.test(String(o.title).trim()))
+  if (!ex?.values?.length) return null
+  const nums = ex.values
+    .map((v) => Number(String(v).replace(/,/g, "")))
+    .filter((n) => Number.isFinite(n) && n > 0)
+  if (!nums.length) return null
+  return Math.min(...nums)
 }
 
 /**
  * Whole-rupee INR for filters/sorting — aligned with how listings are priced in data:
  * - Prefer `metadata.price` (major units, e.g. seed/admin "550000" = ₹5.5L).
  * - Else `price` from Medusa mapping (stored as paise when ≥ typical rupee scale) using same rule as `formatCarPrice`.
+ * - Else minimum **Ex Showroom Price (INR)** from `product_options` when present.
  */
 export function getCarListPriceInRupees(car: CarPriceLike): number | null {
   const meta = car.metadata ?? {}
@@ -42,9 +59,13 @@ export function getCarListPriceInRupees(car: CarPriceLike): number | null {
     return metaNum
   }
   const p = car.price
-  if (p == null || !Number.isFinite(Number(p))) return null
-  const n = Number(p)
-  return n >= 10000 ? n / 100 : n
+  if (p != null && Number.isFinite(Number(p))) {
+    const n = Number(p)
+    return n >= 10000 ? n / 100 : n
+  }
+  const fromOpts = getMinExShowroomRupeesFromProductOptions(car.product_options)
+  if (fromOpts != null) return fromOpts
+  return null
 }
 
 const LAC = 100_000
@@ -140,4 +161,48 @@ export function formatCarPrice(amount: number | null): string {
     currency: "INR",
     maximumFractionDigits: 0,
   }).format(value)
+}
+
+/**
+ * One product option row for UI — numeric ex-showroom values are formatted as ₹ like listings.
+ */
+export function formatCatalogOptionValuesDisplay(title: string, values: string[]): string {
+  if (!values.length) return "—"
+  if (/ex showroom price.*inr/i.test(title.trim())) {
+    return values
+      .map((v) => {
+        const n = Number(String(v).replace(/,/g, ""))
+        if (!Number.isFinite(n)) return v
+        return formatCarPrice(Math.round(n * 100))
+      })
+      .join(" · ")
+  }
+  return values.join(" · ")
+}
+
+/** `metadata.price` is set (asking / listing price in INR major units). */
+export function hasMetadataListingPrice(car: { metadata?: { price?: unknown } }): boolean {
+  const metaNum =
+    car.metadata?.price != null && car.metadata?.price !== ""
+      ? Number(car.metadata.price)
+      : NaN
+  return Number.isFinite(metaNum) && metaNum > 0
+}
+
+/**
+ * "Ex Showroom Price (INR)" option row: when the listing has `metadata.price`, show the same figure as
+ * the card/detail headline (`car.price`). Otherwise show catalog option values (trim prices).
+ */
+export function formatExShowroomOptionRowDisplay(
+  car: { price: number | null; metadata?: { price?: unknown } },
+  optionTitle: string,
+  optionValues: string[]
+): string {
+  if (!/ex showroom price.*inr/i.test(String(optionTitle).trim())) {
+    return formatCatalogOptionValuesDisplay(optionTitle, optionValues)
+  }
+  if (hasMetadataListingPrice(car) && car.price != null) {
+    return formatCarPrice(car.price)
+  }
+  return formatCatalogOptionValuesDisplay(optionTitle, optionValues)
 }

@@ -4,6 +4,7 @@ import { getCacheOptions, getAuthHeaders } from "./cookies"
 import { listProducts } from "./products"
 import { HttpTypes } from "@medusajs/types"
 import type { CarVariantFilters } from "@lib/util/car-variant-filters"
+import { getMinExShowroomRupeesFromProductOptions } from "@lib/util/format-car-price"
 import { ALL_CAR_FUEL_TYPES } from "./car-filter-presets"
 import { getIndiaCityNamesSorted } from "./india-cities"
 
@@ -27,9 +28,17 @@ export type CarVersion = {
   sku: string | null
   fuel_type: string | null
   transmission: string | null
+  /** From Medusa variant option "Ex Showroom Price (INR)" when present */
+  ex_showroom_inr: string | null
   prices: unknown
   inventory_quantity: number | null
   manage_inventory: boolean
+}
+
+/** Product-level options (same shape as Admin/API: title + value list). */
+export type CarProductOption = {
+  title: string
+  values: string[]
 }
 
 export type RelatedCar = {
@@ -70,6 +79,8 @@ export type CarListItem = {
   reviews: CarReview[]
   versions: CarVersion[]
   variant_filters?: CarVariantFilters | null
+  /** Medusa `product.options` (+ values) for Fuel / Transmission / Ex Showroom, etc. */
+  product_options: CarProductOption[]
   metadata?: any
   related_cars: RelatedCar[]
 }
@@ -144,6 +155,22 @@ function getSpecValue(meta: any, group: string, key: string): string | null {
   return item?.value != null ? String(item.value) : null
 }
 
+function mapProductOptions(p: HttpTypes.StoreProduct): CarProductOption[] {
+  const raw = (p as any).options
+  if (!Array.isArray(raw)) return []
+  return raw
+    .map((opt: any) => {
+      const title = String(opt?.title ?? "").trim()
+      const vals = Array.isArray(opt?.values)
+        ? opt.values
+            .map((v: any) => String(v?.value ?? "").trim())
+            .filter(Boolean)
+        : []
+      return { title, values: vals }
+    })
+    .filter((o: CarProductOption) => o.title.length > 0)
+}
+
 const USD_TO_INR = typeof process !== "undefined" && process.env?.USD_TO_INR
   ? Number(process.env.USD_TO_INR)
   : 84
@@ -203,6 +230,13 @@ function getTransmission(p: HttpTypes.StoreProduct, meta: any, firstVariant: any
 function mapProductToCar(p: HttpTypes.StoreProduct): CarListItem {
   const firstVariant: any = p.variants?.[0]
   const meta: any = p.metadata ?? {}
+  const product_options = mapProductOptions(p)
+
+  const fuelValuesFromOptions =
+    product_options.find((o) => /^fuel type$/i.test(o.title.trim()))?.values?.filter(Boolean) ?? []
+  const transmissionValuesFromOptions =
+    product_options.find((o) => /^transmission$/i.test(o.title.trim()))?.values?.filter(Boolean) ?? []
+
   const variant_filters: CarVariantFilters | null = meta?.variant_filters ?? null
   const filterEntryForThisHandle = variant_filters?.variants?.find((v) => v.variant === p.handle) ?? null
   const vehicleTypeRaw = (meta.vehicle_type as string | undefined) ?? null
@@ -220,16 +254,29 @@ function mapProductToCar(p: HttpTypes.StoreProduct): CarListItem {
   const fuelTypesFromFilter = filterEntryForThisHandle?.fuelType ?? []
   const transmissionFromFilter = filterEntryForThisHandle?.transmission ?? []
 
-  const fuelTypesFromVariants = Array.isArray(p.variants)
+  const fuelTypesFromVariants: string[] = Array.isArray(p.variants)
     ? p.variants
         .map((v: any) => getVariantOptionValue(v, "Fuel Type") ?? inferFuelTypeFromText(v?.title))
-        .filter(Boolean)
+        .filter((x): x is string => x != null && String(x).trim() !== "")
     : []
 
-  const fuelTypes = fuelTypesFromFilter.length > 0 ? fuelTypesFromFilter : fuelTypesFromVariants
+  let fuelTypes: string[] = []
+  if (fuelTypesFromFilter.length > 0) fuelTypes = [...fuelTypesFromFilter]
+  else if (fuelTypesFromVariants.length > 0) fuelTypes = [...fuelTypesFromVariants]
+  else if (fuelValuesFromOptions.length > 0) fuelTypes = [...fuelValuesFromOptions]
+
   const fuel_type = fuelTypes.length > 0 ? Array.from(new Set(fuelTypes)).join(" / ") : null
 
-  const transmission = transmissionFromFilter.length > 0 ? Array.from(new Set(transmissionFromFilter)).join(" / ") : getTransmission(p, meta, firstVariant)
+  let transmission: string | null = null
+  if (transmissionFromFilter.length > 0) {
+    transmission = Array.from(new Set(transmissionFromFilter)).join(" / ")
+  } else {
+    const fromChain = getTransmission(p, meta, firstVariant)
+    if (fromChain) transmission = fromChain
+    else if (transmissionValuesFromOptions.length > 0) {
+      transmission = Array.from(new Set(transmissionValuesFromOptions)).join(" / ")
+    }
+  }
 
   const images = (p.images ?? []).map((img: any) => img?.url).filter(Boolean)
 
@@ -251,6 +298,13 @@ function mapProductToCar(p: HttpTypes.StoreProduct): CarListItem {
     }
   }
   price = price ?? fallbackPrice ?? null
+
+  if (price == null) {
+    const minEx = getMinExShowroomRupeesFromProductOptions(product_options)
+    if (minEx != null) {
+      price = Math.round(minEx * 100)
+    }
+  }
 
   const category_handles = ((p.categories as any[]) ?? [])
     .map((c: any) => c?.handle)
@@ -306,11 +360,13 @@ function mapProductToCar(p: HttpTypes.StoreProduct): CarListItem {
       sku: v.sku ?? null,
       fuel_type: getVariantOptionValue(v, "Fuel Type") ?? inferFuelTypeFromText(v?.title),
       transmission: getVariantOptionValue(v, "Transmission") ?? inferTransmissionFromText(v?.title),
+      ex_showroom_inr: getVariantOptionValue(v, "Ex Showroom Price (INR)"),
       prices: v.prices,
       inventory_quantity: typeof v.inventory_quantity === "number" ? v.inventory_quantity : null,
       manage_inventory: Boolean(v.manage_inventory),
     })),
     variant_filters,
+    product_options,
     metadata: meta,
     related_cars: [],
   }
@@ -328,7 +384,7 @@ async function fetchProductByHandle(
       limit: 1,
       handle,
       fields:
-        "+images,+categories,+collection,*variants.prices,*variants.options,+variants.options.option,+metadata,+variants.inventory_quantity,+variants.manage_inventory",
+        "+images,+categories,+collection,*variants.prices,*variants.options,+variants.options.option,+metadata,+variants.inventory_quantity,+variants.manage_inventory,*options,*options.values",
     } as any,
   })
 
@@ -347,7 +403,7 @@ export async function listCars(
       queryParams: {
         limit: 200,
         fields:
-          "+images,+categories,+collection,*variants.prices,*variants.options,+variants.options.option,+metadata,+variants.inventory_quantity,+variants.manage_inventory",
+          "+images,+categories,+collection,*variants.prices,*variants.options,+variants.options.option,+metadata,+variants.inventory_quantity,+variants.manage_inventory,*options,*options.values",
       } as any,
     })
 
@@ -441,6 +497,12 @@ export async function getCarFilterOptions(cars: CarListItem[]): Promise<CarFilte
       }
     } else {
       if (car.transmission) transmissionsSet.add(car.transmission)
+    }
+    const optTrans = car.product_options?.find((o) => /^transmission$/i.test(o.title.trim()))?.values
+    if (optTrans?.length) {
+      for (const tr of optTrans) {
+        if (tr) transmissionsSet.add(String(tr))
+      }
     }
   }
 

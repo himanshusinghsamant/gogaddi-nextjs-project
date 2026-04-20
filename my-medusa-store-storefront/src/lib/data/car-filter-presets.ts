@@ -95,3 +95,33 @@ export function fuelTypeMatchesFilter(carFuelType: string | null | undefined, se
 
   return ft.includes(sel) || sel.split(/[/+&|]/).some((part) => part.trim() && ft.includes(part.trim()))
 }
+
+/**
+ * Match sidebar filter ("Manual" / "Automatic") to catalog strings like "5-Speed Manual" or "CVT Automatic".
+ */
+export function transmissionMatchesFilter(carTransmission: string | null | undefined, selected: string): boolean {
+  const sel = norm(selected)
+  if (!sel) return true
+  const cv = norm(carTransmission)
+  if (!cv) return false
+  if (cv === sel) return true
+
+  if (sel === "manual" || sel.includes("manual")) {
+    return (
+      cv.includes("manual") ||
+      cv.includes("mt") ||
+      /\b\d\s*[-–]?\s*speed\b/i.test(cv)
+    )
+  }
+  if (sel === "automatic" || sel.includes("automatic") || sel === "auto") {
+    return (
+      cv.includes("automatic") ||
+      cv.includes("cvt") ||
+      cv.includes("dct") ||
+      cv.includes("amt") ||
+      cv.includes("tc") ||
+      cv.includes("torque")
+    )
+  }
+  return cv.includes(sel)
+}

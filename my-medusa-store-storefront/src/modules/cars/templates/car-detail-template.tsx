@@ -4,10 +4,16 @@ import CarReviewForm from "@modules/cars/components/car-review-form"
 import CarCard from "@modules/cars/components/car-card"
 import SellerCard from "@modules/cars/components/seller-card"
 import { submitCarReview } from "@lib/data/cars"
-import { formatCarPrice, getVersionPrice } from "@lib/util/format-car-price"
+import {
+  formatCarPrice,
+  formatExShowroomOptionRowDisplay,
+  getVersionPrice,
+  hasMetadataListingPrice,
+} from "@lib/util/format-car-price"
+import { hasCarDisplayValue } from "@lib/util/has-car-display-value"
 import { filter_variants } from "@lib/util/car-variant-filters"
 import type { CarDetail, CarListItem } from "@lib/data/cars"
-import { ChevronRight, Home, MapPin, Phone, MessageCircle, ShieldCheck, Calendar, Gauge, Fuel } from "lucide-react"
+import { ChevronRight, Home, MapPin, Phone, MessageCircle, ShieldCheck, Calendar, Gauge, Fuel, ListTree } from "lucide-react"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -99,7 +105,12 @@ export default function CarDetailTemplate({ car, variantIdFromUrl, customer, rel
       : filteredVersions[0] ?? null
 
   const displayPrice = selectedVariant ? getVersionPrice(selectedVariant.prices) : null
-  const displayPriceFormatted = displayPrice != null ? formatCarPrice(displayPrice) : formatCarPrice(car.price)
+  const listingPriceFromMetadata = hasMetadataListingPrice(car)
+  const displayPriceFormatted = listingPriceFromMetadata
+    ? formatCarPrice(car.price)
+    : displayPrice != null
+      ? formatCarPrice(displayPrice)
+      : formatCarPrice(car.price)
 
   // Booking CTA must follow the top-level metadata boolean (metadata.available).
   // Variant-level inventory should not override this button visibility.
@@ -111,14 +122,25 @@ export default function CarDetailTemplate({ car, variantIdFromUrl, customer, rel
 
   const images = [...(car.thumbnail ? [car.thumbnail] : []), ...(car.images ?? []).filter((img) => img !== car.thumbnail)]
 
+  const toDisplayText = (v: unknown) =>
+    typeof v === "string" ? v.trim() : v == null ? "" : String(v).trim()
+
   const quickSpecs = [
-    car.fuel_type && { label: "Fuel Type", value: car.fuel_type, icon: Fuel },
-    car.engine && { label: "Engine", value: car.engine, icon: Fuel },
-    car.mileage && { label: "Mileage", value: car.mileage, icon: Gauge },
-    car.transmission && { label: "Transmission", value: car.transmission, icon: Gauge },
-    car.year && { label: "Year", value: car.year, icon: Calendar },
-    car.km_driven && { label: "KM Driven", value: car.km_driven, icon: Gauge },
+    hasCarDisplayValue(car.fuel_type) && { label: "Fuel Type", value: toDisplayText(car.fuel_type), icon: Fuel },
+    hasCarDisplayValue(car.engine) && { label: "Engine", value: toDisplayText(car.engine), icon: Fuel },
+    hasCarDisplayValue(car.mileage) && { label: "Mileage", value: toDisplayText(car.mileage), icon: Gauge },
+    hasCarDisplayValue(car.transmission) && { label: "Transmission", value: toDisplayText(car.transmission), icon: Gauge },
+    hasCarDisplayValue(car.year) && { label: "Year", value: toDisplayText(car.year), icon: Calendar },
+    hasCarDisplayValue(car.km_driven) && { label: "KM Driven", value: toDisplayText(car.km_driven), icon: Gauge },
   ].filter(Boolean) as Array<{ label: string; value: string; icon: any }>
+
+  const catalogOptionsVisible =
+    car.product_options?.filter((opt) => {
+      if (/ex showroom price.*inr/i.test(String(opt.title).trim()) && hasMetadataListingPrice(car)) {
+        return true
+      }
+      return Array.isArray(opt.values) && opt.values.some((v) => hasCarDisplayValue(v))
+    }) ?? []
 
   return (
     <div className="bg-white min-h-screen">
@@ -164,6 +186,90 @@ export default function CarDetailTemplate({ car, variantIdFromUrl, customer, rel
                   {quickSpecs.map((spec) => (
                     <Badge key={spec.label} label={spec.label} value={spec.value} icon={spec.icon} />
                   ))}
+                </div>
+              </div>
+            )}
+
+            {/* Medusa product.options (Fuel Type, Transmission, Ex Showroom Price, …) */}
+            {catalogOptionsVisible.length > 0 && (
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                  <ListTree size={22} className="text-blue-500" />
+                  Catalog options
+                </h3>
+                <div className="bg-white rounded-3xl border border-gray-200 p-8 shadow-sm">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                    {catalogOptionsVisible.map((opt) => (
+                      <div
+                        key={opt.title}
+                        className="flex justify-between items-start gap-4 py-3 border-b border-gray-100 last:border-0"
+                      >
+                        <span className="text-sm text-gray-500 font-medium shrink-0">{opt.title}</span>
+                        <span className="text-sm font-bold text-gray-900 text-right">
+                          {formatExShowroomOptionRowDisplay(car, opt.title, opt.values)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Medusa variants (per configuration: fuel / transmission / ex-showroom from options) */}
+            {filteredVersions.length > 0 && (
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 mb-6">Available configurations</h3>
+                <div className="bg-white rounded-3xl border border-gray-200 overflow-hidden shadow-sm">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-gray-50 border-b border-gray-200 text-left">
+                          <th className="px-4 py-3 font-bold text-gray-700">Variant</th>
+                          <th className="px-4 py-3 font-bold text-gray-700">Fuel</th>
+                          <th className="px-4 py-3 font-bold text-gray-700">Transmission</th>
+                          <th className="px-4 py-3 font-bold text-gray-700">Ex-showroom (opt.)</th>
+                          <th className="px-4 py-3 font-bold text-gray-700 w-32"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredVersions.map((v) => {
+                          const isSel = selectedVariant?.id === v.id
+                          const ex = v.ex_showroom_inr
+                          const exDisplay =
+                            ex != null && /^\d+$/.test(String(ex).trim())
+                              ? formatCarPrice(Math.round(Number(String(ex).replace(/,/g, "")) * 100))
+                              : ex ?? "—"
+                          return (
+                            <tr
+                              key={v.id}
+                              className={`border-b border-gray-100 last:border-0 ${isSel ? "bg-blue-50/60" : ""}`}
+                            >
+                              <td className="px-4 py-3 font-medium text-gray-900">{v.title}</td>
+                              <td className="px-4 py-3 text-gray-700">{v.fuel_type ?? "—"}</td>
+                              <td className="px-4 py-3 text-gray-700">{v.transmission ?? "—"}</td>
+                              <td className="px-4 py-3 text-gray-900 font-semibold">{exDisplay}</td>
+                              <td className="px-4 py-3">
+                                {filteredVersions.length > 1 ? (
+                                  <LocalizedClientLink
+                                    href={`/cars/${car.handle}?variant_id=${encodeURIComponent(v.id)}`}
+                                    className={`text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg inline-block ${
+                                      isSel
+                                        ? "bg-blue-600 text-white"
+                                        : "bg-gray-100 text-gray-800 hover:bg-blue-100"
+                                    }`}
+                                  >
+                                    {isSel ? "Selected" : "Select"}
+                                  </LocalizedClientLink>
+                                ) : (
+                                  <span className="text-xs text-gray-400">—</span>
+                                )}
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             )}
@@ -351,7 +457,9 @@ export default function CarDetailTemplate({ car, variantIdFromUrl, customer, rel
                   <p className="text-4xl font-black text-gray-900 tracking-tight">
                     {displayPriceFormatted}
                   </p>
-                  <p className="text-sm text-gray-400 mt-1 font-medium">Ex-showroom price</p>
+                  <p className="text-sm text-gray-400 mt-1 font-medium">
+                    {listingPriceFromMetadata ? "Listed price" : "Ex-showroom price"}
+                  </p>
                 </div>
 
                 <div className="space-y-4">

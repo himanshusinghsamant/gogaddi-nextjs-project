@@ -6,11 +6,46 @@ import { motion } from "framer-motion"
 import { Fuel, Gauge, Calendar, MapPin, Heart } from "lucide-react"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import type { CarListItem } from "@lib/data/cars"
-import { formatCarPrice } from "@lib/util/format-car-price"
+import {
+  formatCarPrice,
+  formatExShowroomOptionRowDisplay,
+  hasMetadataListingPrice,
+} from "@lib/util/format-car-price"
+import { hasCarDisplayValue } from "@lib/util/has-car-display-value"
 import { PLACEHOLDER_IMAGE_URL } from "@lib/constants/placeholder-image"
 
 export default function CarCard({ car, featured = false }: { car: CarListItem; featured?: boolean }) {
   const displayImage = car.thumbnail || car.images?.[0] || PLACEHOLDER_IMAGE_URL
+  const meta = car.metadata as Record<string, unknown> | undefined
+  const stockInv = meta?.inventory
+  const toDisplayText = (v: unknown) =>
+    typeof v === "string" ? v.trim() : v == null ? "" : String(v).trim()
+
+  const specItems = [
+    hasCarDisplayValue(car.year) && {
+      label: "Year",
+      icon: Calendar,
+      value: toDisplayText(car.year),
+    },
+    hasCarDisplayValue(car.fuel_type) && {
+      label: "Fuel",
+      icon: Fuel,
+      value: toDisplayText(car.fuel_type),
+    },
+    hasCarDisplayValue(car.mileage) && {
+      label: "Mileage",
+      icon: Gauge,
+      value: toDisplayText(car.mileage),
+    },
+  ].filter(Boolean) as Array<{ label: string; icon: typeof Calendar; value: string }>
+
+  const visibleOptions =
+    car.product_options?.filter((opt) => {
+      if (/ex showroom price.*inr/i.test(String(opt.title).trim()) && hasMetadataListingPrice(car)) {
+        return true
+      }
+      return Array.isArray(opt.values) && opt.values.some((v) => hasCarDisplayValue(v))
+    }) ?? []
 
   return (
     <motion.div
@@ -71,32 +106,50 @@ export default function CarCard({ car, featured = false }: { car: CarListItem; f
                 {car.engine}
               </p>
             )}
+          <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-2 text-[11px] text-gray-500">
+            {car.owner ? <span>Owner: {car.owner}</span> : null}
+            {car.km_driven ? <span>{car.km_driven} km</span> : null}
+            {stockInv != null && stockInv !== "" ? <span>Stock: {String(stockInv)}</span> : null}
+          </div>
         </div>
 
-        {/* Specs Grid */}
-        <div className="grid grid-cols-3 gap-y-2 gap-x-1 mb-5 py-3 border-t border-b border-gray-50">
-          <div className="flex flex-col">
-            <span className="text-[10px] text-gray-400 uppercase tracking-wider">Year</span>
-            <div className="flex items-center gap-1 text-xs font-medium text-gray-700">
-              <Calendar size={12} className="text-blue-500" />
-              {car.year || "N/A"}
-            </div>
+        {specItems.length > 0 && (
+          <div
+            className={`grid gap-y-2 gap-x-1 mb-5 py-3 border-t border-b border-gray-50 ${
+              specItems.length === 1 ? "grid-cols-1" : specItems.length === 2 ? "grid-cols-2" : "grid-cols-3"
+            }`}
+          >
+            {specItems.map((spec, i) => {
+              const Icon = spec.icon
+              return (
+                <div
+                  key={spec.label}
+                  className={`flex flex-col ${i > 0 ? "border-l border-gray-100 pl-3" : ""}`}
+                >
+                  <span className="text-[10px] text-gray-400 uppercase tracking-wider">{spec.label}</span>
+                  <div className="flex items-center gap-1 text-xs font-medium text-gray-700">
+                    <Icon size={12} className="text-blue-500 shrink-0" />
+                    <span className="truncate">{spec.value}</span>
+                  </div>
+                </div>
+              )
+            })}
           </div>
-          <div className="flex flex-col border-l border-gray-100 pl-3">
-            <span className="text-[10px] text-gray-400 uppercase tracking-wider">Fuel</span>
-            <div className="flex items-center gap-1 text-xs font-medium text-gray-700">
-              <Fuel size={12} className="text-blue-500" />
-              <span className="truncate">{car.fuel_type || "N/A"}</span>
-            </div>
+        )}
+
+        {visibleOptions.length > 0 && (
+          <div className="mb-4 space-y-1.5 border-t border-gray-50 pt-3">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Options</p>
+            {visibleOptions.map((opt) => (
+              <div key={opt.title} className="flex justify-between gap-2 text-xs">
+                <span className="text-gray-500 shrink-0">{opt.title}</span>
+                <span className="font-medium text-gray-800 text-right line-clamp-2">
+                  {formatExShowroomOptionRowDisplay(car, opt.title, opt.values)}
+                </span>
+              </div>
+            ))}
           </div>
-          <div className="flex flex-col border-l border-gray-100 pl-3">
-            <span className="text-[10px] text-gray-400 uppercase tracking-wider">Mileage</span>
-            <div className="flex items-center gap-1 text-xs font-medium text-gray-700">
-              <Gauge size={12} className="text-blue-500" />
-              <span className="truncate">{car.mileage ?? "N/A"}</span>
-            </div>
-          </div>
-        </div>
+        )}
 
         <div className="flex items-end justify-between gap-4">
           <div>

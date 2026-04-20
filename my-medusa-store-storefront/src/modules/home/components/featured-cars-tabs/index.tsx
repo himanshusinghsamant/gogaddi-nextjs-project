@@ -5,6 +5,7 @@ import Image from "next/image"
 import { motion, AnimatePresence } from "framer-motion"
 import type { CarListItem } from "@lib/data/cars"
 import { formatCarPrice } from "@lib/util/format-car-price"
+import { hasCarDisplayValue } from "@lib/util/has-car-display-value"
 import { PLACEHOLDER_IMAGE_URL } from "@lib/constants/placeholder-image"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 
@@ -47,11 +48,16 @@ function CarMiniCard({ car }: { car: CarListItem }) {
             {formatCarPrice(car.price)}
           </p>
         </div>
-        {(car.car_type || car.fuel_type || car.year) && (
-          <p className="text-xs text-slate-500 mt-2">
-            {[car.car_type === "Used" ? "Old" : car.car_type, car.year, car.fuel_type].filter(Boolean).join(" · ")}
-          </p>
-        )}
+        {(() => {
+          const typeLabel =
+            car.car_type === "Used" ? "Old" : hasCarDisplayValue(car.car_type) ? car.car_type : null
+          const bits = [typeLabel, hasCarDisplayValue(car.year) ? car.year : null, hasCarDisplayValue(car.fuel_type) ? car.fuel_type : null].filter(
+            Boolean
+          ) as string[]
+          return bits.length > 0 ? (
+            <p className="text-xs text-slate-500 mt-2">{bits.join(" · ")}</p>
+          ) : null
+        })()}
 
         <LocalizedClientLink
           href={carHref}
