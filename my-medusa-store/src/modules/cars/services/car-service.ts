@@ -4,6 +4,8 @@ import CarSpecification from "../models/car-specification"
 import CarReview from "../models/car-review"
 import CarRelated from "../models/car-related"
 import SellerCar from "../models/seller-car"
+import CarBooking from "../models/car-booking"
+import { analyzeReviewText } from "../../../lib/reviews/moderation"
 
 class CarsModuleService extends MedusaService({
   CarFeature,
@@ -11,6 +13,7 @@ class CarsModuleService extends MedusaService({
   CarReview,
   CarRelated,
   SellerCar,
+  CarBooking,
 }) {
   // ── Car Features ─────────────────────────────────────────────────────
   async addFeature(productId: string, feature: { feature_name: string; feature_value?: string }) {
@@ -26,18 +29,33 @@ class CarsModuleService extends MedusaService({
 
   async addReview(
     productId: string,
-    review: { reviewer_name?: string; rating: number; review_text?: string }
+    review: { reviewer_name?: string; rating: number; review_text?: string },
+    options?: { bypassModeration?: boolean; forceStatus?: "published" | "pending" }
   ) {
+    const reviewText = review.review_text ?? ""
+    const moderation = options?.bypassModeration
+      ? { isFlagged: false, matchedWords: [] as string[] }
+      : analyzeReviewText(reviewText)
+    const status =
+      options?.forceStatus ?? (moderation.isFlagged ? "pending" : "published")
+
     return this.createCarReviews({
       product_id: productId,
       reviewer_name: review.reviewer_name ?? "",
       rating: review.rating,
-      review_text: review.review_text ?? "",
+      review_text: reviewText,
+      status,
+      is_flagged: moderation.isFlagged,
+      flagged_words: moderation.matchedWords.join(","),
     } as any)
   }
 
   async addRelatedCar(productId: string, relatedProductId: string) {
-    return this.createCarRelated({ product_id: productId, related_product_id: relatedProductId } as any)
+    // Medusa generates pluralized helpers for the CarRelated model (createCarRelateds)
+    return (this as any).createCarRelateds({
+      product_id: productId,
+      related_product_id: relatedProductId,
+    } as any)
   }
 
   async getCarFeatures(productId: string) {
@@ -49,11 +67,24 @@ class CarsModuleService extends MedusaService({
   }
 
   async getCarReviews(productId: string) {
-    return this.listCarReviews({ product_id: productId })
+    return this.listCarReviews({ product_id: productId, status: "published" } as any)
+  }
+
+  async getCarReviewsForAdmin(productId: string) {
+    return this.listCarReviews({ product_id: productId } as any)
+  }
+
+  async listAllCarReviews(filters?: {
+    status?: string
+    is_flagged?: boolean
+    product_id?: string
+  }) {
+    return this.listCarReviews(filters ?? ({} as any))
   }
 
   async getRelatedCars(productId: string) {
-    return this.listCarRelated({ product_id: productId })
+    // And listCarRelateds for listing
+    return (this as any).listCarRelateds({ product_id: productId })
   }
 
   // ── Seller Car Submissions ────────────────────────────────────────────
@@ -108,6 +139,59 @@ class CarsModuleService extends MedusaService({
     if (!(items as any[]).length) return null
     const item = (items as any[])[0]
     return this.updateSellerCars({ id: item.id, status: "sold" } as any)
+  }
+
+  // ── Car Bookings (Test Drive) ─────────────────────────────────────────
+  async createBooking(data: {
+    customer_id?: string | null
+    car_id: string
+    car_title?: string | null
+    name: string
+    email: string
+    phone: string
+    city: string
+    preferred_date: string
+    preferred_time: string
+    message?: string | null
+    verification_token: string
+  }) {
+    return this.createCarBookings({
+      customer_id: data.customer_id ?? null,
+      car_id: data.car_id,
+      car_title: data.car_title ?? null,
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
+      city: data.city,
+      preferred_date: data.preferred_date,
+      preferred_time: data.preferred_time,
+      message: data.message ?? null,
+      verification_token: data.verification_token,
+      status: "pending",
+      is_email_verified: false,
+    } as any)
+  }
+
+  async getBookingByToken(token: string) {
+    const results = await this.listCarBookings({ verification_token: token } as any)
+    return (results as any[])[0] ?? null
+  }
+
+  async getBooking(id: string) {
+    const results = await this.listCarBookings({ id } as any)
+    return (results as any[])[0] ?? null
+  }
+
+  async listAllBookings(filters?: Record<string, any>) {
+    return this.listCarBookings(filters ?? {})
+  }
+
+  async verifyBookingEmail(id: string) {
+    return this.updateCarBookings({ id, is_email_verified: true, status: "email_verified" } as any)
+  }
+
+  async updateBookingStatus(id: string, status: "confirmed" | "cancelled") {
+    return this.updateCarBookings({ id, status } as any)
   }
 }
 

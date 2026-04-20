@@ -51,7 +51,8 @@ export default function CTASection() {
               <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />
 
               <Plus size={20} className="text-blue-200" />
-              <span className="relative">Post Your Car Free</span>
+              <span className="relative inline md:hidden">Post Free</span>
+              <span className="relative hidden md:inline">Post Your Car Free</span>
               <ArrowRight size={18} className="opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
             </LocalizedClientLink>
 

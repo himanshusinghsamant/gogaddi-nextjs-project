@@ -5,6 +5,7 @@ import Image from "next/image"
 import { motion, AnimatePresence } from "framer-motion"
 import type { CarListItem } from "@lib/data/cars"
 import { formatCarPrice } from "@lib/util/format-car-price"
+import { hasCarDisplayValue } from "@lib/util/has-car-display-value"
 import { PLACEHOLDER_IMAGE_URL } from "@lib/constants/placeholder-image"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 
@@ -47,11 +48,16 @@ function CarMiniCard({ car }: { car: CarListItem }) {
             {formatCarPrice(car.price)}
           </p>
         </div>
-        {(car.car_type || car.fuel_type || car.year) && (
-          <p className="text-xs text-slate-500 mt-2">
-            {[car.car_type === "Used" ? "Old" : car.car_type, car.year, car.fuel_type].filter(Boolean).join(" · ")}
-          </p>
-        )}
+        {(() => {
+          const typeLabel =
+            car.car_type === "Used" ? "Old" : hasCarDisplayValue(car.car_type) ? car.car_type : null
+          const bits = [typeLabel, hasCarDisplayValue(car.year) ? car.year : null, hasCarDisplayValue(car.fuel_type) ? car.fuel_type : null].filter(
+            Boolean
+          ) as string[]
+          return bits.length > 0 ? (
+            <p className="text-xs text-slate-500 mt-2">{bits.join(" · ")}</p>
+          ) : null
+        })()}
 
         <LocalizedClientLink
           href={carHref}
@@ -88,10 +94,10 @@ export default function FeaturedCarsTabs({
   ]
 
   return (
-    <section className="bg-[#fcfcfd] py-20 overflow-hidden">
+    <section className="bg-[#fcfcfd] overflow-hidden">
       <div className="content-container">
         {/* Modern Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-12">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 md:gap-8 mb-8 md:mb-12">
           <div>
             <span className="text-indigo-600 font-black text-xs uppercase tracking-[0.3em] mb-3 block">
               Browse by category
@@ -102,7 +108,9 @@ export default function FeaturedCarsTabs({
           </div>
 
           {/* Premium Tab Switcher */}
-          <div className="relative flex p-1.5 bg-slate-100 rounded-2xl w-fit">
+          <div className="relative -mx-4 md:mx-0">
+            <div className="flex md:inline-flex gap-2 px-4 md:px-0 overflow-x-auto md:overflow-visible no-scrollbar">
+              <div className="relative inline-flex p-1.5 bg-slate-100 rounded-2xl shrink-0">
             {tabs.map((t) => {
               const isActive = t.key === active
               return (
@@ -124,6 +132,8 @@ export default function FeaturedCarsTabs({
                 </button>
               )
             })}
+              </div>
+            </div>
           </div>
         </div>
 

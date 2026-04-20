@@ -60,12 +60,16 @@ export async function GET(req: MedusaRequest, res: MedusaResponse): Promise<void
     return
   }
 
-  const reviews = await carsService.getCarReviews(id)
+  const reviews = await carsService.getCarReviewsForAdmin(id)
   const reviewsPayload = (reviews as any[]).map((r) => ({
     id: r.id,
+    product_id: r.product_id,
     reviewer_name: r.reviewer_name,
     rating: r.rating,
     review_text: r.review_text,
+    status: r.status,
+    is_flagged: r.is_flagged,
+    flagged_words: r.flagged_words,
     created_at: r.created_at,
   }))
 

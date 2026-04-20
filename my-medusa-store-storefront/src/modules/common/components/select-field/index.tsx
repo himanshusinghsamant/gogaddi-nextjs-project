@@ -179,7 +179,7 @@ const SelectField = forwardRef<HTMLDivElement, SelectFieldProps>(
 
         {isOpen && (
           <div
-            className="absolute top-full left-0 z-50 w-full mt-2 bg-white/80 backdrop-blur-xl rounded-2xl border border-slate-200 shadow-2xl overflow-hidden shadow-blue-900/5 select-field-dropdown"
+            className="absolute top-full left-0 z-[800] w-full mt-2 bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden shadow-blue-900/5 select-field-dropdown"
           >
             {searchable && (
               <div className="sticky top-0 p-3 border-b border-slate-100 bg-white/50">

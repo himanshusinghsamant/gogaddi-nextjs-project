@@ -1,5 +1,6 @@
 import { Metadata } from "next"
 import { listCars, getCarFilterOptions } from "@lib/data/cars"
+import { getRootCategoriesForSitemap, mergeBrandOptionsFromCategoryTree } from "@lib/data/categories"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import Image from "next/image"
 import { readdir } from "fs/promises"
@@ -78,6 +79,16 @@ function filenameToBrandKey(filename: string) {
   return normalizeBrandKey(base)
 }
 
+// Collapse noisy brand strings like "Maruti Suzuki Swift LXI" into a clean
+// brand label such as "Maruti Suzuki".
+function canonicalBrandName(name: string): string {
+  const clean = name.trim()
+  if (!clean) return name
+  const parts = clean.split(/\s+/)
+  if (parts.length <= 2) return clean
+  return `${parts[0]} ${parts[1]}`
+}
+
 async function getBrandLogoMapFromPublic(): Promise<Record<string, string>> {
   try {
     const dir = path.join(process.cwd(), "public", "brands-logo")
@@ -132,11 +143,18 @@ export default async function BrandsPage(props: {
 }) {
   const { countryCode } = await props.params
   const { cars } = await listCars(countryCode)
-  const { brands: apiBrands } = await getCarFilterOptions(cars)
+  const [filterOpts, rootCategories] = await Promise.all([
+    getCarFilterOptions(cars),
+    getRootCategoriesForSitemap(),
+  ])
+  const { brands: apiBrands } = mergeBrandOptionsFromCategoryTree(filterOpts, rootCategories)
   const logoMap = await getBrandLogoMapFromPublic()
 
   const allBrandNames = Array.from(
-    new Set([...apiBrands, ...FALLBACK_BRANDS].filter(Boolean))
+    new Set([
+      ...apiBrands.map(canonicalBrandName),
+      ...FALLBACK_BRANDS,
+    ].filter(Boolean))
   ).sort((a, b) => a.localeCompare(b, "en"))
 
   const byLetter = allBrandNames.reduce<Record<string, string[]>>((acc, name) => {

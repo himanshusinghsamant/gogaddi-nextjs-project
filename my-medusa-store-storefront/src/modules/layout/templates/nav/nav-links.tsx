@@ -32,11 +32,11 @@ export default function NavLinks({ links }: { links: NavLink[] }) {
 
         const base =
           l.className ??
-          "px-4 py-2 text-sm font-medium text-gray-600 rounded-lg hover:bg-white hover:text-blue-600 hover:shadow-sm transition-all duration-200"
+          "px-3 py-2 rounded-full text-sm font-semibold text-slate-600 hover:text-blue-600 hover:bg-blue-50/60 transition-colors"
 
         const active =
           l.activeClassName ??
-          "bg-white text-blue-700 shadow-sm"
+          "text-blue-700 bg-blue-50 shadow-[0_0_0_1px_rgba(37,99,235,0.35)]"
 
         return (
           <LocalizedClientLink
@@ -52,4 +52,3 @@ export default function NavLinks({ links }: { links: NavLink[] }) {
     </>
   )
 }
-

@@ -1,7 +1,9 @@
 import { Metadata } from "next"
 import { notFound } from "next/navigation"
 import CarDetailTemplate from "@modules/cars/templates/car-detail-template"
-import { getCarByHandle } from "@lib/data/cars"
+import { getCarByHandle, listCars } from "@lib/data/cars"
+import { selectCrossBrandRelatedCars } from "@lib/data/related-cars"
+import { retrieveCustomer } from "@lib/data/customer"
 
 type Props = {
   params: Promise<{ countryCode: string; handle: string }>
@@ -31,6 +33,18 @@ export default async function CarDetailPage({ params, searchParams }: Props) {
   const { car } = await getCarByHandle(countryCode, handle)
   if (!car) notFound()
 
-  return <CarDetailTemplate car={car} variantIdFromUrl={variantId} />
+  const customer = await retrieveCustomer().catch(() => null)
+
+  const { cars: inventory } = await listCars(countryCode)
+  const relatedCars = selectCrossBrandRelatedCars(car, inventory, 8)
+
+  return (
+    <CarDetailTemplate
+      car={car}
+      variantIdFromUrl={variantId}
+      customer={customer}
+      relatedCars={relatedCars}
+    />
+  )
 }
 

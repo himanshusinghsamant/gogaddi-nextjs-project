@@ -5,7 +5,7 @@ import { motion } from "framer-motion"
 import { Clock, ArrowUpRight } from "lucide-react"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import type { CarListItem } from "@lib/data/cars"
-import { CarCard } from "@modules/home/components/featured-cars-section"
+import CarCard from "@modules/cars/components/car-card"
 
 export default function LatestArrivals({ latestCars }: { latestCars: CarListItem[] }) {
   // Container variants for staggered children animation

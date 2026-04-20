@@ -23,5 +23,11 @@ export default defineMiddlewares({
       method: ["GET"],
       middlewares: [authenticate("customer", ["session", "bearer"])],
     },
+    // Test drive bookings — only authenticated customers (create + list mine)
+    {
+      matcher: "/store/car-bookings",
+      method: ["GET", "POST"],
+      middlewares: [authenticate("customer", ["session", "bearer"])],
+    },
   ],
 })

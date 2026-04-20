@@ -3,6 +3,10 @@
 import { getCacheOptions, getAuthHeaders } from "./cookies"
 import { listProducts } from "./products"
 import { HttpTypes } from "@medusajs/types"
+import type { CarVariantFilters } from "@lib/util/car-variant-filters"
+import { getMinExShowroomRupeesFromProductOptions } from "@lib/util/format-car-price"
+import { ALL_CAR_FUEL_TYPES } from "./car-filter-presets"
+import { getIndiaCityNamesSorted } from "./india-cities"
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
 
@@ -24,9 +28,17 @@ export type CarVersion = {
   sku: string | null
   fuel_type: string | null
   transmission: string | null
+  /** From Medusa variant option "Ex Showroom Price (INR)" when present */
+  ex_showroom_inr: string | null
   prices: unknown
   inventory_quantity: number | null
   manage_inventory: boolean
+}
+
+/** Product-level options (same shape as Admin/API: title + value list). */
+export type CarProductOption = {
+  title: string
+  values: string[]
 }
 
 export type RelatedCar = {
@@ -45,6 +57,8 @@ export type CarListItem = {
   subtitle: string | null
   brand: string | null
   model: string | null
+  /** Product category display names (for filters aligned with category tree). */
+  category_names: string[]
   category_handles: string[]
   fuel_type: string | null
   transmission: string | null
@@ -64,6 +78,10 @@ export type CarListItem = {
   specifications: CarSpecification[]
   reviews: CarReview[]
   versions: CarVersion[]
+  variant_filters?: CarVariantFilters | null
+  /** Medusa `product.options` (+ values) for Fuel / Transmission / Ex Showroom, etc. */
+  product_options: CarProductOption[]
+  metadata?: any
   related_cars: RelatedCar[]
 }
 
@@ -115,12 +133,42 @@ function getVariantOptionValue(variant: any, optionTitle: string): string | null
   return null
 }
 
+function inferFuelTypeFromText(text: string | null | undefined): string | null {
+  const t = (text ?? "").toLowerCase()
+  if (t.includes("petrol")) return "Petrol"
+  if (t.includes("diesel")) return "Diesel"
+  return null
+}
+
+function inferTransmissionFromText(text: string | null | undefined): string | null {
+  const t = (text ?? "").toLowerCase()
+  if (t.includes("automatic") || t.includes("auto")) return "Automatic"
+  if (t.includes("manual")) return "Manual"
+  return null
+}
+
 /** Get a spec value from metadata.specifications (e.g. Transmission.Transmission Type → "Manual") */
 function getSpecValue(meta: any, group: string, key: string): string | null {
   const groupList = meta?.specifications?.[group]
   if (!Array.isArray(groupList)) return null
   const item = groupList.find((i: any) => i?.key === key)
   return item?.value != null ? String(item.value) : null
+}
+
+function mapProductOptions(p: HttpTypes.StoreProduct): CarProductOption[] {
+  const raw = (p as any).options
+  if (!Array.isArray(raw)) return []
+  return raw
+    .map((opt: any) => {
+      const title = String(opt?.title ?? "").trim()
+      const vals = Array.isArray(opt?.values)
+        ? opt.values
+            .map((v: any) => String(v?.value ?? "").trim())
+            .filter(Boolean)
+        : []
+      return { title, values: vals }
+    })
+    .filter((o: CarProductOption) => o.title.length > 0)
 }
 
 const USD_TO_INR = typeof process !== "undefined" && process.env?.USD_TO_INR
@@ -182,6 +230,19 @@ function getTransmission(p: HttpTypes.StoreProduct, meta: any, firstVariant: any
 function mapProductToCar(p: HttpTypes.StoreProduct): CarListItem {
   const firstVariant: any = p.variants?.[0]
   const meta: any = p.metadata ?? {}
+  const product_options = mapProductOptions(p)
+
+  const fuelValuesFromOptions =
+    product_options.find((o) => /^fuel type$/i.test(o.title.trim()))?.values?.filter(Boolean) ?? []
+  const transmissionValuesFromOptions =
+    product_options.find((o) => /^transmission$/i.test(o.title.trim()))?.values?.filter(Boolean) ?? []
+
+  const variant_filters: CarVariantFilters | null = meta?.variant_filters ?? null
+  const filterEntryForThisHandle = variant_filters?.variants?.find((v) => v.variant === p.handle) ?? null
+  const vehicleTypeRaw = (meta.vehicle_type as string | undefined) ?? null
+  const normalizedCarType =
+    (meta.car_type as string | undefined) ??
+    (vehicleTypeRaw === "old" ? "Used" : vehicleTypeRaw === "new" ? "New" : vehicleTypeRaw)
 
   const brand =
     (p.collection as any)?.title ??
@@ -190,22 +251,72 @@ function mapProductToCar(p: HttpTypes.StoreProduct): CarListItem {
     deriveBrandFromTitle(p.title) ??
     null
 
-  const fuel_type = (meta.fuel_type as string) ?? getVariantOptionValue(firstVariant, "Fuel Type")
-  const transmission = getTransmission(p, meta, firstVariant)
+  const fuelTypesFromFilter = filterEntryForThisHandle?.fuelType ?? []
+  const transmissionFromFilter = filterEntryForThisHandle?.transmission ?? []
+
+  const fuelTypesFromVariants: string[] = Array.isArray(p.variants)
+    ? p.variants
+        .map((v: any) => getVariantOptionValue(v, "Fuel Type") ?? inferFuelTypeFromText(v?.title))
+        .filter((x): x is string => x != null && String(x).trim() !== "")
+    : []
+
+  let fuelTypes: string[] = []
+  if (fuelTypesFromFilter.length > 0) fuelTypes = [...fuelTypesFromFilter]
+  else if (fuelTypesFromVariants.length > 0) fuelTypes = [...fuelTypesFromVariants]
+  else if (fuelValuesFromOptions.length > 0) fuelTypes = [...fuelValuesFromOptions]
+
+  const fuel_type = fuelTypes.length > 0 ? Array.from(new Set(fuelTypes)).join(" / ") : null
+
+  let transmission: string | null = null
+  if (transmissionFromFilter.length > 0) {
+    transmission = Array.from(new Set(transmissionFromFilter)).join(" / ")
+  } else {
+    const fromChain = getTransmission(p, meta, firstVariant)
+    if (fromChain) transmission = fromChain
+    else if (transmissionValuesFromOptions.length > 0) {
+      transmission = Array.from(new Set(transmissionValuesFromOptions)).join(" / ")
+    }
+  }
 
   const images = (p.images ?? []).map((img: any) => img?.url).filter(Boolean)
 
-  let price = pickPriceFromVariant(firstVariant)
+  // Prefer "metadata.price" (seeded as INR major units like "820000").
+  // Frontend expects car.price in paise to work with `formatCarPrice` and filter normalization.
+  let price: number | null = null
+  const metadataPriceRaw = meta?.price
+  const metadataPriceNum = metadataPriceRaw != null ? Number(metadataPriceRaw) : NaN
+  if (Number.isFinite(metadataPriceNum) && metadataPriceNum > 0) {
+    // Convert INR major -> paise
+    price = Math.round(metadataPriceNum * 100)
+  }
+
+  let fallbackPrice = pickPriceFromVariant(firstVariant)
   if (price == null && Array.isArray(p.variants)) {
     for (const v of p.variants as any[]) {
-      price = pickPriceFromVariant(v)
-      if (price != null) break
+      fallbackPrice = pickPriceFromVariant(v)
+      if (fallbackPrice != null) break
+    }
+  }
+  price = price ?? fallbackPrice ?? null
+
+  if (price == null) {
+    const minEx = getMinExShowroomRupeesFromProductOptions(product_options)
+    if (minEx != null) {
+      price = Math.round(minEx * 100)
     }
   }
 
   const category_handles = ((p.categories as any[]) ?? [])
     .map((c: any) => c?.handle)
     .filter(Boolean) as string[]
+
+  const category_names = Array.from(
+    new Set(
+      ((p.categories as any[]) ?? [])
+        .map((c: any) => (c?.name != null ? String(c.name).trim() : ""))
+        .filter(Boolean)
+    )
+  )
 
   return {
     id: p.id!,
@@ -216,6 +327,7 @@ function mapProductToCar(p: HttpTypes.StoreProduct): CarListItem {
     subtitle: (p as any).subtitle ?? null,
     brand,
     model: (meta.model as string) ?? (p as any).subtitle ?? p.handle ?? null,
+    category_names,
     category_handles,
     fuel_type: fuel_type ?? null,
     transmission,
@@ -226,9 +338,10 @@ function mapProductToCar(p: HttpTypes.StoreProduct): CarListItem {
     mileage: (meta.mileage as string) ?? null,
     owner: (meta.owner as string) ?? null,
     city: (meta.city as string) ?? null,
-    car_type: (meta.car_type as string) ?? null,
+    car_type: (normalizedCarType as string | null) ?? null,
     customer_id: (meta.customer_id as string) ?? null,
     availability: (() => {
+      if (typeof meta.available === "boolean") return meta.available
       const qty = firstVariant?.inventory_quantity
       const managed = firstVariant?.manage_inventory
       // If inventory is not tracked, treat as available
@@ -245,14 +358,37 @@ function mapProductToCar(p: HttpTypes.StoreProduct): CarListItem {
       id: v.id,
       title: v.title ?? "Variant",
       sku: v.sku ?? null,
-      fuel_type: getVariantOptionValue(v, "Fuel Type"),
-      transmission: getVariantOptionValue(v, "Transmission"),
+      fuel_type: getVariantOptionValue(v, "Fuel Type") ?? inferFuelTypeFromText(v?.title),
+      transmission: getVariantOptionValue(v, "Transmission") ?? inferTransmissionFromText(v?.title),
+      ex_showroom_inr: getVariantOptionValue(v, "Ex Showroom Price (INR)"),
       prices: v.prices,
       inventory_quantity: typeof v.inventory_quantity === "number" ? v.inventory_quantity : null,
       manage_inventory: Boolean(v.manage_inventory),
     })),
+    variant_filters,
+    product_options,
+    metadata: meta,
     related_cars: [],
   }
+}
+
+async function fetchProductByHandle(
+  countryCode: string,
+  handle: string
+): Promise<HttpTypes.StoreProduct | null> {
+  const {
+    response: { products },
+  } = await listProducts({
+    countryCode,
+    queryParams: {
+      limit: 1,
+      handle,
+      fields:
+        "+images,+categories,+collection,*variants.prices,*variants.options,+variants.options.option,+metadata,+variants.inventory_quantity,+variants.manage_inventory,*options,*options.values",
+    } as any,
+  })
+
+  return (products ?? [])[0] ?? null
 }
 
 export async function listCars(
@@ -267,7 +403,7 @@ export async function listCars(
       queryParams: {
         limit: 200,
         fields:
-          "+images,+categories,+collection,*variants.prices,*variants.options,+variants.options.option,+metadata,+variants.inventory_quantity,+variants.manage_inventory",
+          "+images,+categories,+collection,*variants.prices,*variants.options,+variants.options.option,+metadata,+variants.inventory_quantity,+variants.manage_inventory,*options,*options.values",
       } as any,
     })
 
@@ -316,20 +452,7 @@ export async function getCarByHandle(
   handle: string
 ): Promise<{ car: CarDetail | null; error?: string }> {
   try {
-    const next = { ...(await getCacheOptions(`car-${handle}`)), revalidate: 60 }
-    const {
-      response: { products },
-    } = await listProducts({
-      countryCode,
-      queryParams: {
-        limit: 1,
-        handle,
-        fields:
-          "+images,+categories,+collection,*variants.prices,*variants.options,+variants.options.option,+metadata,+variants.inventory_quantity,+variants.manage_inventory",
-      } as any,
-    })
-
-    const p = (products ?? [])[0]
+    const p = await fetchProductByHandle(countryCode, handle)
     if (!p) return { car: null }
 
     const car = mapProductToCar(p)
@@ -341,14 +464,60 @@ export async function getCarByHandle(
   }
 }
 
+export async function getCarsByHandles(
+  countryCode: string,
+  handles: string[]
+): Promise<{ cars: CarListItem[]; error?: string }> {
+  try {
+    const unique = Array.from(new Set(handles.filter(Boolean)))
+    const cars = (
+      await Promise.all(
+        unique.map(async (h) => {
+          const p = await fetchProductByHandle(countryCode, h)
+          return p ? mapProductToCar(p) : null
+        })
+      )
+    ).filter(Boolean) as CarListItem[]
+
+    return { cars }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Network error"
+    return { cars: [], error: message }
+  }
+}
+
 export async function getCarFilterOptions(cars: CarListItem[]): Promise<CarFilterOptions> {
-  const brands = Array.from(new Set((cars.map((c) => c.brand).filter(Boolean) as string[]))).sort()
-  const fuelTypes = Array.from(new Set((cars.map((c) => c.fuel_type).filter(Boolean) as string[]))).sort()
-  const transmissions = Array.from(new Set((cars.map((c) => c.transmission).filter(Boolean) as string[]))).sort()
-  const cities = Array.from(new Set((cars.map((c) => c.city).filter(Boolean) as string[]))).sort()
+  const transmissionsSet = new Set<string>()
+
+  for (const car of cars) {
+    const entry = car.variant_filters?.variants?.find((v) => v.variant === car.handle) ?? null
+    if (entry) {
+      for (const tr of entry.transmission ?? []) {
+        if (tr) transmissionsSet.add(String(tr))
+      }
+    } else {
+      if (car.transmission) transmissionsSet.add(car.transmission)
+    }
+    const optTrans = car.product_options?.find((o) => /^transmission$/i.test(o.title.trim()))?.values
+    if (optTrans?.length) {
+      for (const tr of optTrans) {
+        if (tr) transmissionsSet.add(String(tr))
+      }
+    }
+  }
+
+  /** Full preset list (Petrol, Diesel, EV, hybrids, CNG, …); not limited to current inventory. */
+  const fuelTypes = [...ALL_CAR_FUEL_TYPES]
+  const transmissions = Array.from(transmissionsSet).sort()
+  const inventoryCities = cars.map((c) => c.city).filter(Boolean) as string[]
+  const cities = Array.from(
+    new Set([...getIndiaCityNamesSorted(), ...inventoryCities])
+  ).sort((a, b) => a.localeCompare(b, "en"))
   const years = Array.from(new Set((cars.map((c) => c.year).filter(Boolean) as string[]))).sort((a, b) => Number(b) - Number(a))
   const owners = Array.from(new Set((cars.map((c) => c.owner).filter(Boolean) as string[]))).sort()
   const models = Array.from(new Set((cars.map((c) => c.model).filter(Boolean) as string[]))).sort()
+  /** Fallback when category tree is empty: derive from product `brand` field. */
+  const brands = Array.from(new Set((cars.map((c) => c.brand).filter(Boolean) as string[]))).sort()
   return { brands, fuelTypes, transmissions, cities, years, owners, models }
 }
 
@@ -487,6 +656,60 @@ export async function listMyCarSubmissions(): Promise<{
   } catch (err) {
     return {
       submissions: [],
+      error: err instanceof Error ? err.message : "Network error",
+    }
+  }
+}
+
+// ─── Test drive bookings ─────────────────────────────────────────────────────
+
+export type TestDriveBooking = {
+  id: string
+  car_id: string
+  car_title: string | null
+  name: string
+  email: string
+  phone: string
+  city: string
+  preferred_date: string
+  preferred_time: string
+  message: string | null
+  status: "pending" | "email_verified" | "confirmed" | "cancelled"
+  is_email_verified: boolean
+  created_at: string
+  updated_at: string
+}
+
+export async function listMyTestDriveBookings(): Promise<{
+  bookings: TestDriveBooking[]
+  error?: string
+}> {
+  const baseUrl = process.env.MEDUSA_BACKEND_URL || "http://localhost:9000"
+  const authHeaders = await getAuthHeaders()
+  const token = "authorization" in authHeaders ? authHeaders.authorization : null
+  if (!token) {
+    return { bookings: [], error: "Please sign in to view your test drive bookings." }
+  }
+  const publishableKey = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY
+  const headers: Record<string, string> = {
+    Authorization: token,
+  }
+  if (publishableKey) headers["x-publishable-api-key"] = publishableKey
+  try {
+    const res = await fetch(`${baseUrl}/store/car-bookings`, {
+      method: "GET",
+      headers,
+      cache: "no-store",
+    })
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}))
+      return { bookings: [], error: (d as any)?.message || `Failed (${res.status})` }
+    }
+    const data = await res.json()
+    return { bookings: data.bookings ?? [] }
+  } catch (err) {
+    return {
+      bookings: [],
       error: err instanceof Error ? err.message : "Network error",
     }
   }

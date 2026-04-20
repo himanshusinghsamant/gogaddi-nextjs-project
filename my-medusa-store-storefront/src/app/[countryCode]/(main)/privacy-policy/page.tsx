@@ -145,16 +145,16 @@ export default function PrivacyPolicyPage() {
                 </p>
               </PolicySection>
 
-              <div className="mt-20 pt-10 border-t border-slate-100 flex flex-col md:flex-row items-center justify-between gap-6">
+              <div className="mt-20 pt-10 border-t border-slate-100 flex flex-col md:flex-row items-center justify-center gap-6">
                  <LocalizedClientLink
                   href="/"
                   className="flex items-center gap-2 text-sm font-bold text-slate-400 hover:text-slate-900 transition-colors"
                 >
                   <ArrowLeft size={16} /> Return to Home
                 </LocalizedClientLink>
-                <button className="flex items-center gap-2 text-sm font-bold text-blue-600 hover:text-blue-700">
+                {/* <button className="flex items-center gap-2 text-sm font-bold text-blue-600 hover:text-blue-700">
                   <FileText size={16} /> Download as PDF
-                </button>
+                </button> */}
               </div>
 
             </div>
