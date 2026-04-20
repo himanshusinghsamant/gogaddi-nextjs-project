@@ -5,11 +5,16 @@ import Image from "next/image"
 import { useState, useEffect } from "react"
 
 const HERO_IMAGES = [
-  "/cars/peter-broomfield-m3m-lnR90uM-unsplash.jpg",
-  "/cars/joshua-koblin-eqW1MPinEV4-unsplash.jpg",
-  "/cars/olav-tvedt-6lSBynPRaAQ-unsplash.jpg",
-  "/cars/img-1.jpg",
-  "/cars/img-2.jpg",
+  "/cars/car-1.jpg",
+  "/cars/car-2.jpg",
+  "/cars/car-3.jpg",
+  "/cars/car-4.jpg",
+  "/cars/car-5.jpg",
+  "/cars/car-6.jpg",
+  "/cars/car-7.jpg",
+  "/cars/car-8.jpg",
+  "/cars/car-9.jpg",
+
 ]
 
 function HeroSlide({ src, alt }: { src: string; alt: string }) {
