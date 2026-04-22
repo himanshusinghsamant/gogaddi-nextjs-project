@@ -87,6 +87,9 @@ function NewsAndEventsPageContent() {
   const [items, setItems] = useState<UiNewsItem[]>(() => [...NEWS_AND_EVENTS])
   const [searchQuery, setSearchQuery] = useState("")
 
+
+  console.log("items ------>", items)
+
   const filteredItems = items.filter((item) => {
     const q = searchQuery.trim().toLowerCase()
     if (!q) return true

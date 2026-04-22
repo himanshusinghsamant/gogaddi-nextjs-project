@@ -25,7 +25,11 @@ const config = ({ env }: Core.Config.Shared.ConfigParams): Core.Config.Database 
     },
     postgres: {
       connection: {
-        connectionString: env('DATABASE_URL'),
+        ...(env('DATABASE_URL')
+          ? {
+              connectionString: env('DATABASE_URL'),
+            }
+          : {}),
         host: env('DATABASE_HOST', 'localhost'),
         port: env.int('DATABASE_PORT', 5432),
         database: env('DATABASE_NAME', 'strapi'),
