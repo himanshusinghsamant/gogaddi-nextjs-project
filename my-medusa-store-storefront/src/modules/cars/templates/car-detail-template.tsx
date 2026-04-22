@@ -13,6 +13,7 @@ import {
 import { hasCarDisplayValue } from "@lib/util/has-car-display-value"
 import { filter_variants } from "@lib/util/car-variant-filters"
 import type { CarDetail, CarListItem } from "@lib/data/cars"
+import type { RelatedCarPick } from "@lib/data/related-cars"
 import { ChevronRight, Home, MapPin, Phone, MessageCircle, ShieldCheck, Calendar, Gauge, Fuel, ListTree } from "lucide-react"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -91,7 +92,7 @@ type CarDetailTemplateProps = {
   variantIdFromUrl?: string
   /** When null, test drive booking is hidden and "Login to book" is shown. */
   customer?: { id: string } | null
-  relatedCars?: CarListItem[]
+  relatedCars?: RelatedCarPick[]
 }
 
 export default function CarDetailTemplate({ car, variantIdFromUrl, customer, relatedCars }: CarDetailTemplateProps) {
@@ -541,7 +542,7 @@ export default function CarDetailTemplate({ car, variantIdFromUrl, customer, rel
               </LocalizedClientLink>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {relatedCars.map((related) => (
+              {relatedCars.map(({ car: related }) => (
                 <CarCard key={related.id} car={related} />
               ))}
             </div>

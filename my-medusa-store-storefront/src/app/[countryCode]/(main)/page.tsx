@@ -24,6 +24,83 @@ export const metadata: Metadata = {
   description: "Experience the future of car buying. Verified premium cars, seamless financing, and doorstep delivery.",
 }
 
+function mulberry32(seed: number) {
+  return function () {
+    let t = (seed += 0x6d2b79f5)
+    t = Math.imul(t ^ (t >>> 15), t | 1)
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+function shuffleSeeded<T>(arr: T[], seed: number): T[] {
+  const out = [...arr]
+  const rnd = mulberry32(seed)
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(rnd() * (i + 1))
+    ;[out[i], out[j]] = [out[j], out[i]]
+  }
+  return out
+}
+
+function normalizeDiversityKey(input: unknown): string {
+  return String(input ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+}
+
+type DiversityCarShape = {
+  id?: string
+  handle?: string | null
+  brand?: string | null
+  model?: string | null
+  name?: string | null
+}
+
+function pickDiverseCars<T extends DiversityCarShape>(cars: T[], count: number, seed: number): T[] {
+  const pool = shuffleSeeded(cars, seed).filter((c) => c && (c.id || c.handle))
+
+  const picked: T[] = []
+  const usedBrands = new Set<string>()
+  const usedModels = new Set<string>()
+
+  const brandKey = (c: T) => normalizeDiversityKey(c.brand)
+  const modelKey = (c: T) =>
+    normalizeDiversityKey(c.model) || normalizeDiversityKey(c.name) || normalizeDiversityKey(c.handle)
+
+  // Pass 1: unique brand + unique model
+  for (const car of pool) {
+    if (picked.length >= count) break
+    const b = brandKey(car)
+    const m = modelKey(car)
+    if (b && usedBrands.has(b)) continue
+    if (m && usedModels.has(m)) continue
+    picked.push(car)
+    if (b) usedBrands.add(b)
+    if (m) usedModels.add(m)
+  }
+
+  // Pass 2: allow repeating brand, still avoid repeating model
+  for (const car of pool) {
+    if (picked.length >= count) break
+    if (picked.includes(car)) continue
+    const m = modelKey(car)
+    if (m && usedModels.has(m)) continue
+    picked.push(car)
+    if (m) usedModels.add(m)
+  }
+
+  // Pass 3: fill remaining slots (no constraints)
+  for (const car of pool) {
+    if (picked.length >= count) break
+    if (picked.includes(car)) continue
+    picked.push(car)
+  }
+
+  return picked.slice(0, count)
+}
+
 /** Fallback brand names when API returns none (e.g. empty catalog). */
 const FALLBACK_BRANDS = [
   "Maruti Suzuki",
@@ -156,12 +233,21 @@ export default async function HomePage(props: {
   const brandLogoItems = await getBrandLogoItems(brands)
   const brandCarImages = await getBrandCarImages(brands)
 
-  const featuredCars = cars.slice(-8)
-  const latestCars = [...cars].sort((a, b) => (Number(b.year) || 0) - (Number(a.year) || 0)).slice(0, 4)
+  // Rotate featured picks daily (stable within the same day).
+  const todayKey = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
+  const seed = Array.from(`${countryCode}|${todayKey}`).reduce((acc, ch) => acc + ch.charCodeAt(0), 0)
+
+  const featuredCars = pickDiverseCars(cars, 8, seed)
+  const latestCars = [...cars]
+    .sort((a, b) => (Number(b.year) || 0) - (Number(a.year) || 0))
+    .slice(0, 12)
+  const latestCarsDiverse = pickDiverseCars(latestCars, 4, seed + 1)
+
+  const newestPool = [...cars].sort((a, b) => (Number(b.year) || 0) - (Number(a.year) || 0)).slice(0, 30)
   const featuredTabs = {
-    featured: cars.slice(-3),
-    newest: [...cars].sort((a, b) => (Number(b.year) || 0) - (Number(a.year) || 0)).slice(0, 3),
-    moreListings: cars.slice(-6, -3),
+    featured: pickDiverseCars(cars, 3, seed + 2),
+    newest: pickDiverseCars(newestPool, 3, seed + 3),
+    moreListings: pickDiverseCars(cars, 3, seed + 4),
   }
 
   return (
@@ -343,13 +429,13 @@ export default async function HomePage(props: {
       </div>
 
       {/* ── Latest Arrivals ──────────────────────────────────────────────── */}
-      {latestCars.length > 0 && (
+      {latestCarsDiverse.length > 0 && (
         <section className="py-10 md:py-16 bg-gray-50">
           <div className="content-container">
             <div className="flex items-end justify-between">
               <h2 className="text-3xl font-bold text-gray-900">Just Arrived</h2>
             </div>
-            <LatestArrivals latestCars={latestCars} />
+            <LatestArrivals latestCars={latestCarsDiverse} />
           </div>
         </section>
       )}

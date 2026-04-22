@@ -24,7 +24,7 @@ export default async function Nav() {
               alt="GoGaddi"
               width={180}
               height={46}
-              className="h-10 w-auto md:h-[3.1rem] object-contain brightness-0"
+              className="h-10 w-auto md:h-[2.25rem] object-contain brightness-0"
               priority
             />
           </LocalizedClientLink>
@@ -48,7 +48,7 @@ export default async function Nav() {
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-slate-900 via-slate-900 to-blue-700 text-white text-sm font-bold shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 hover:from-slate-800 hover:to-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
             >
               <Car size={16} />
-              Car
+              Inventory
             </LocalizedClientLink>
           </div>
 

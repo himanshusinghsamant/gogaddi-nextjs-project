@@ -206,6 +206,15 @@ function filterAndSort(
       result.sort((a, b) => (Number(b.year) || 0) - (Number(a.year) || 0))
       break
     default:
+      // Default sort: price high -> low (unknown prices go last)
+      result.sort((a, b) => {
+        const ra = getCarListPriceInRupees(a)
+        const rb = getCarListPriceInRupees(b)
+        if (ra == null && rb == null) return 0
+        if (ra == null) return 1
+        if (rb == null) return -1
+        return rb - ra
+      })
       break
   }
   return result
@@ -263,6 +272,9 @@ export default async function CarsListingPage(props: {
   const { countryCode } = await props.params
 
   const { cars, error } = await listCars(countryCode)
+
+
+  console.log("cars ---->", cars)
   const [filterOptions, rootCategories] = await Promise.all([
     getCarFilterOptions(cars),
     getRootCategoriesForSitemap(),
